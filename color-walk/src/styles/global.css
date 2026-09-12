@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ground: #0b0b0c;
+  --color-ink: #f2efe9;
+}
+
+html {
+  background: var(--color-ground);
+  color: var(--color-ink);
+}
+
+/* Tailwind v4 Preflight no longer restores the native button cursor. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
