@@ -28,7 +28,6 @@ describe('extractDominantColor', () => {
     expect(color!.w).toBe(480);
     expect(color!.h).toBe(480);
     expect(color!.hex).toMatch(/^#[0-9a-f]{6}$/);
-    expect(color!.pal).toHaveLength(4);
   });
 
   it('ignores near-white pixels entirely', async () => {
@@ -44,10 +43,10 @@ describe('extractDominantColor', () => {
     expect(await extractDominantColor(await solid(480, 480, { r: 4, g: 4, b: 4 }))).toBeNull();
   });
 
-  it('pads the palette when only one hue is present', async () => {
+  it('reports a full share for a single-hue image', async () => {
     const color = await extractDominantColor(await solid(480, 480, BLUE));
-    expect(color!.pal).toEqual([color!.hex, color!.hex, color!.hex, color!.hex]);
     expect(color!.pct).toBe(1);
+    expect(color!.hex).toMatch(/^#[0-9a-f]{6}$/);
   });
 
   it('keeps sat and lig inside 0..100 and hue inside 0..359', async () => {

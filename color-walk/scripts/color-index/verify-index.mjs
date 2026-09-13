@@ -28,7 +28,6 @@ function checkItem(item, bucket, fail) {
   if (!(item.pct > 0 && item.pct <= 1)) fail(`${at}: pct ${item.pct} out of range`);
   if (!(item.w > 0 && item.h > 0)) fail(`${at}: missing dimensions`);
   if (!HEX.test(item.hex)) fail(`${at}: hex ${item.hex} malformed`);
-  if (!Array.isArray(item.pal) || item.pal.length !== 4) fail(`${at}: palette is not 4 colours`);
   if (bucket !== null && hueToBucket(item.hue) !== bucket) fail(`${at}: hue belongs in bucket ${hueToBucket(item.hue)}`);
 }
 

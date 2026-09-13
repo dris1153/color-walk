@@ -1,13 +1,63 @@
 @import "tailwindcss";
 
+/* Self-hosted deliberately: no external font origin is contacted at runtime, so
+   no visitor IP reaches a third party and the CSP can keep font-src 'self'. */
+@font-face {
+  font-family: "Fraunces";
+  src: url("/fonts/fraunces-latin.woff2") format("woff2");
+  font-weight: 400 600;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Fraunces";
+  src: url("/fonts/fraunces-latin-ext.woff2") format("woff2");
+  font-weight: 400 600;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 @theme {
   --color-ground: #0b0b0c;
   --color-ink: #f2efe9;
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-ui: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+:root {
+  --accent: #6b7280;
 }
 
 html {
   background: var(--color-ground);
   color: var(--color-ink);
+  font-family: var(--font-ui);
+}
+
+/* A real element, because `transition` cannot animate background-image. */
+.hue-tint {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--accent);
+  opacity: 0.06;
+  transition: background-color 600ms ease;
+}
+
+.hue-ring {
+  background: conic-gradient(
+    from 0deg,
+    hsl(0 70% 55%), hsl(60 70% 55%), hsl(120 70% 55%), hsl(180 70% 55%),
+    hsl(240 70% 55%), hsl(300 70% 55%), hsl(360 70% 55%)
+  );
+  mask: radial-gradient(circle, #0000 58%, #000 59%);
+  touch-action: none; /* without this a mobile drag scrolls the page instead */
 }
 
 /* Tailwind v4 Preflight no longer restores the native button cursor. */
@@ -18,5 +68,18 @@ html {
   }
   button:disabled {
     cursor: not-allowed;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

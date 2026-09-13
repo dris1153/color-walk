@@ -78,9 +78,6 @@ function accumulate(data, channels) {
 /** Circular mean, so a bucket straddling 0 does not average to 180. */
 const bucketHue = (acc, b) => wrap360(Math.atan2(acc.sin[b], acc.cos[b]) / DEG);
 
-const bucketHex = (acc, b) =>
-  hslToHex(bucketHue(acc, b), acc.sat[b] / acc.weight[b], acc.lig[b] / acc.weight[b]);
-
 /**
  * `pct` is the winning bucket's share of the COUNTED colour weight, not of all
  * pixels. The whole index is sorted by it, so read it as "how much of this
@@ -100,24 +97,16 @@ export function dominantColorFromRaw(data, channels) {
   const l = acc.lig[win] / acc.weight[win];
   const hex = hslToHex(hue, s, l);
 
-  const pal = Array.from({ length: BUCKETS }, (_, b) => b)
-    .filter((b) => acc.weight[b] > 0)
-    .sort((a, b) => acc.weight[b] - acc.weight[a])
-    .slice(0, 4)
-    .map((b) => bucketHex(acc, b));
-  while (pal.length < 4) pal.push(hex);
-
   return {
     hue: Math.round(hue) % 360,
     sat: Math.round(s),
     lig: Math.round(l),
     hex,
     pct: Number((acc.weight[win] / acc.counted).toFixed(4)),
-    pal,
   };
 }
 
-/** Returns { w, h, hue, sat, lig, hex, pct, pal } or null for achromatic works. */
+/** Returns { w, h, hue, sat, lig, hex, pct } or null for achromatic works. */
 export async function extractDominantColor(buf) {
   const meta = await sharp(buf).metadata();
   const { data, info } = await sharp(buf)

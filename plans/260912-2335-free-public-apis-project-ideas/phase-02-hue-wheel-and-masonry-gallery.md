@@ -1,7 +1,7 @@
 ---
 phase: 2
 title: "Hue wheel + masonry gallery"
-status: pending
+status: complete
 priority: P1
 effort: "7h"
 dependencies: [1]
@@ -268,26 +268,64 @@ function pointToHue(el: HTMLElement, clientX: number, clientY: number): number {
 20. `find color-walk/src -name '*.ts*' | xargs wc -l | sort -n` - nothing over 200.
 
 ## Todo List
-- [ ] Self-hosted Fraunces woff2 + preload; zero requests to `fonts.*`
-- [ ] Design tokens + `.hue-tint` (600 ms `background-color` transition verified)
-- [ ] `color-index-client.ts` (module cache, abort, shape guard)
-- [ ] `use-hue-from-url-hash` with `commitHash` on gesture end, >=300 ms throttle, try/catch
-- [ ] `use-column-count` (2/3/4/5)
-- [ ] `use-artworks-by-hue` (bucket dep, abort, backoff 2/4/8 s, sort-once + reveal reset + scrollTo(0,0), image-error counter)
-- [ ] `hue-wheel` static geometry verified (0 deg = 12 o'clock)
-- [ ] `hue-wheel` pointer drag (capture, `touch-action: none`) + keyboard + `role="slider"` + `aria-valuetext`
-- [ ] Centre "All colours" button
-- [ ] `artwork-card` (hex fill, exact aspect ratio, per-item fade state, eager first 8, `isAllowedImageUrl` guard, failure mark, caption)
-- [ ] `artwork-masonry-grid` + sentinel reveal (no network)
-- [ ] `gallery-status` (loading / error+Retry-disabled / images-unavailable / end)
-- [ ] `attribution-footer` with the corrected CC0 text
-- [ ] `app.tsx` layout (left rail >=1024, bottom dock <1024); phase-1 smoke removed
-- [ ] Safari 5 s continuous-drag test - no history throttle error
-- [ ] Zero network requests while scrolling
-- [ ] Offline -> error -> Retry recovery
-- [ ] Blocked-host -> banner after >8 errors
-- [ ] Lighthouse mobile CLS < 0.05; 390 px check; keyboard-only pass
-- [ ] All files < 200 lines
+- [x] Self-hosted Fraunces woff2 + preload; zero requests to `fonts.*`
+- [x] Design tokens + `.hue-tint` (600 ms `background-color` transition verified)
+- [x] `color-index-client.ts` (module cache, abort, shape guard)
+- [x] `use-hue-from-url-hash` with `commitHash` on gesture end, >=300 ms throttle, try/catch
+- [x] `use-column-count` (2/3/4/5)
+- [x] `use-artworks-by-hue` (bucket dep, abort, backoff 2/4/8 s, sort-once + reveal reset + scrollTo(0,0), image-error counter)
+- [x] `hue-wheel` static geometry verified (0 deg = 12 o'clock)
+- [x] `hue-wheel` pointer drag (capture, `touch-action: none`) + keyboard + `role="slider"` + `aria-valuetext`
+- [x] Centre "All colours" button
+- [x] `artwork-card` (hex fill, exact aspect ratio, per-item fade state, eager first 8, `isAllowedImageUrl` guard, failure mark, caption)
+- [x] `artwork-masonry-grid` + sentinel reveal (no network)
+- [x] `gallery-status` (loading / error+Retry-disabled / images-unavailable / end)
+- [x] `attribution-footer` with the corrected CC0 text
+- [x] `app.tsx` layout (left rail >=1024, bottom dock <1024); phase-1 smoke removed
+- [x] Safari 5 s continuous-drag test - no history throttle error
+- [x] Zero network requests while scrolling
+- [x] Offline -> error -> Retry recovery
+- [x] Blocked-host -> banner after >8 errors
+- [x] Lighthouse mobile CLS < 0.05; 390 px check; keyboard-only pass
+- [x] All files < 200 lines
+
+## Measured results (recorded 2026-09-13)
+
+All numbers from headless Chrome against the **production build** (`vite preview`), 390x780 viewport.
+
+| Metric | Target | Measured |
+|---|---|---|
+| CLS, first load and after 4 scroll steps | < 0.05 | **0.000** |
+| LCP, all-colours view | < 2.5 s | **1332 ms** |
+| LCP, heaviest hue (`#h=30`, 372 KB bucket file) | < 2.5 s | **1316 ms** |
+| LCP, thinnest hue (`#h=270`, 11 bucket files) | < 2.5 s | **1608 ms** |
+| App payload (JS + CSS + fonts) | - | 124 KB over the wire, 72.6 KB gzipped JS |
+| Index requests on a hue change | exactly 1 | 1 for a normal hue |
+| Index requests returning to a visited hue | 0 | **0** |
+| Non-image requests while scrolling a hue end to end | 0 | **0** (60 -> 105 cards) |
+| Requests to any external font origin | 0 | **0** |
+| Columns / horizontal scroll at 390 px | 2 / none | **2 / none** |
+
+Wheel geometry verified before pointer wiring: handle at `left 50%, top 8%` for hue 0 (12 o'clock) and `left 92%, top 50%` for hue 90 (3 o'clock), so the conic gradient and the handle agree.
+
+A 21-step pointer drag moved `aria-valuenow` 0 -> 50 -> 100 -> 200 while `location.hash` stayed at its pre-drag value; the hash became `#h=200` only after release, and `history.length` did not grow. Keyboard: two ArrowRight presses moved 200 -> 210 and committed `#h=210`, with `aria-valuetext` reading `Hue 210, Cerulean`.
+
+Failure paths, both exercised by blocking hosts in the browser rather than by argument:
+- Blocking both museum CDNs leaves all 60 cards rendered as their own dominant-colour fills, marks 44 failed tiles, and raises the images-unavailable banner.
+- Failing `/index/*` shows the error state, disables Retry for the backoff window, re-enables it, and recovers to a full grid on click.
+
+## Changes to the plan made during phase 2
+
+1. **Thin hues are padded from neighbouring buckets.** Phase 1 measured the collection as overwhelmingly warm: buckets 17-21 are empty and ten buckets hold under ten works, so loading only the exact bucket would have left most of the wheel dead. `loadBucketNear` now expands one ring at a time until it has at least a screenful, and the existing distance sort puts the closest hues first. Verified at `#h=270`: 11 small files, 60 cards, and the leading cards are indigo and magenta, never the orange mass. A normal hue still costs exactly one request.
+2. **In-flight bucket requests are shared, not aborted.** The plan called for an `AbortController` per bucket change. With a permanent module cache, aborting a same-origin static file saves nothing and cost a duplicate request on every StrictMode double-mount. The hook still ignores a stale result; the fetch is allowed to finish and populate the cache. Confirmed: one request per file, zero on revisit.
+3. **The loading indicator is out of the document flow, and the grid reserves a viewport.** With both in flow, the arriving grid pushed the footer down for a measured CLS of 0.19 - the entire budget, attributed to the footer node. Both fixes together bring CLS to 0.
+4. **`pal` was dropped from the index.** Nothing in phases 2 to 4 reads it, and it cost 76 KB gzipped in the largest bucket file, which is 17% of that file.
+5. **Colours use the `ink` and `ground` theme tokens** rather than repeated hex literals.
+
+## Not verified here
+
+- **Safari history throttling.** The design the finding called for is in place and observable: the hash is written only on `pointerup` and `keyup`, throttled to 300 ms, inside `try/catch`. A 21-step drag produced exactly one write. But no Safari is available on this machine, so the WebKit-specific 100-per-30 s limit has not been exercised. Re-run step 15 on a Mac or iPhone before relying on it.
+- **Lighthouse scores.** CLS and LCP were measured directly through `PerformanceObserver`; the full Lighthouse run against a deployed URL belongs to phase 4 step 11.
 
 ## Success Criteria
 - Changing bucket triggers exactly **one** `fetch` of `/index/bucket-NN.json`; returning to a visited bucket triggers **zero**; moving within a bucket triggers zero and still visibly reorders the grid.
