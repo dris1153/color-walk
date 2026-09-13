@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: "Heap-snapshot leak check"
-status: pending
+status: completed
 priority: P3
 effort: "1h"
 dependencies: [2]
@@ -58,12 +58,49 @@ Counting by constructor name is deliberately coarse. The question is "did 20 vie
 4. Run it. If the delta exceeds 1, investigate before touching anything else: that is a real finding, not a threshold to relax.
 5. Record the numbers in v1's phase 3 file and remove the caveat it carries.
 
+## Measured results (recorded 2026-09-14)
+
+Two consecutive runs of 20 open/close cycles against the production bundle:
+
+| | run 1 | run 2 |
+|---|---|---|
+| Canvases tracked | 11 | 11 |
+| Instrument valid | yes | yes |
+| Still alive after forced collection | index 0 only | index 0 only |
+| Leaked canvases | **0** | **0** |
+| DOM canvases left | 0 | 0 |
+
+Index 0 is the canvas deliberately held by a strong reference. Its survival is what makes the run meaningful: it proves the check can detect a retained canvas, so the zero for every other cycle is a real result rather than a blind instrument always answering the same way.
+
+Eleven canvases from twenty cycles is expected, not a shortfall. The other nine works were over the 4 MB gate, so they showed the "Load full resolution" button and never built a viewer. Those cycles still exercise opening and closing the overlay.
+
+## The first two instruments were wrong, and how that was caught
+
+1. **Counting heap-snapshot nodes whose name mentions `HTMLCanvasElement` reported a leak of 20 that did not exist.** Those matches were OpenSeadragon's error-message strings, its compiled code, the class prototype and its internal cache, none of which are instances. Narrowing to `object` nodes fixed the noise.
+2. **The narrowed counter was blind.** With an overlay open and a live viewer on screen it reported exactly the same count as with everything closed, so it could not have told a leak from a clean teardown. It only looked like a pass.
+
+That second failure is the reason the final script validates itself. One canvas per run is pinned by a strong reference, and the run reports `INCONCLUSIVE` rather than `PASS` if that reference does not survive. A test that cannot fail proves nothing.
+
+**A `WeakRef` replaced the snapshot entirely.** It answers the actual question - was this canvas collected - with no snapshot parsing, no constructor-name matching and no ambiguity.
+
+One more honest note: an earlier run did report a single leaked canvas. It was the last-closed viewer, not yet collected when the references were read. Raising the settle time before the final collection cleared it, and two consecutive runs then agreed. The result was confirmed rather than accepted on one green run.
+
 ## Success Criteria
-- [ ] The script reports `HTMLCanvasElement` counts before and after with a forced GC on both sides.
-- [ ] The delta after 20 open/close cycles is within 1 of baseline.
-- [ ] It runs against the production bundle with real headers, not the dev server.
-- [ ] `git status` shows no project file changed by running it.
-- [ ] v1's phase 3 file carries the measured numbers and no longer claims heap counting was skipped.
+Reworded to match the instrument that was actually built. The original wording
+described the heap-snapshot count, which was tried, found blind, and replaced;
+leaving a tick against it would have claimed work that did not happen.
+
+- [x] The check proves a viewer's canvas is collected after its overlay closes, with collection forced on both the CDP and the page side.
+- [x] Zero canvases survive 20 open/close cycles, other than the one held deliberately.
+- [x] The check validates itself: it reports `INCONCLUSIVE`, not `PASS`, if the deliberately retained canvas is also collected.
+- [x] The result is confirmed across two consecutive runs, not accepted on one.
+- [x] It runs against the production bundle with real headers, not the dev server.
+- [x] `git status` shows no project file changed by running it.
+- [x] v1's phase 3 file carries the measured result and no longer claims heap counting was skipped.
+
+*(Not done: the before/after heap-snapshot node count named in the original
+plan. It could not distinguish a live viewer from a destroyed one, which is
+recorded above.)*
 
 ## Risk Assessment
 | Risk | L x I | Mitigation |

@@ -265,7 +265,7 @@ The plan expected "essentially all Met originals" to sit behind the button; in f
 | Tab escaping the dialog | never; all three `#root` siblings carry `inert` |
 | Escape returns focus | to the originating card |
 | Scroll lock | `position: fixed`, `top: -900px`, restored to exactly 900 on close |
-| 20 open/close cycles | 0 canvases and 0 OpenSeadragon containers left |
+| 20 open/close cycles | 0 canvases and 0 OpenSeadragon containers left in the DOM; superseded 2026-09-14 by a `WeakRef` check that proves the canvases are actually collected, see v2 phase 3 |
 | OSD chunk blocked | poster plus metadata stay, reload prompt appears, never a blank screen |
 | Reduced motion | poster fade and hue tint both collapse to 0.01 ms |
 | 390 px | panel stacks below the image, no horizontal scroll, controls present |
@@ -283,7 +283,6 @@ OpenSeadragon resolves to exactly one non-entry chunk, 350 KB raw and 88 KB gzip
 ## Not verified here
 
 - **Real touch gestures.** Pinch-to-zoom, two-finger pan and the iOS edge back-swipe cannot be driven from headless Chrome. The layout, the gate button and the controls were checked at 390 px, and the iOS-safe scroll lock was verified by its observable effects (`position: fixed`, exact scroll restore), but the gestures themselves need a real device.
-- **Heap-level leak counting.** The teardown check counts DOM canvases and OpenSeadragon containers after 20 open/close cycles, both of which return to zero. A DevTools heap snapshot filtered on `HTMLCanvasElement` would be stronger.
 
 ## Success Criteria
 - A CMA `print` under 4 MB opens automatically and zooms smoothly; a Met original shows the gate button with its size in MB and only loads on click.
