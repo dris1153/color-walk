@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useHueFromUrlHash } from './hooks/use-hue-from-url-hash';
 import { useColumnCount } from './hooks/use-column-count';
 import { useArtworksByHue } from './hooks/use-artworks-by-hue';
@@ -10,8 +10,13 @@ import {
   ImagesUnavailableBanner,
 } from './components/gallery-status';
 import { AttributionFooter } from './components/attribution-footer';
+import { ArtworkDetailOverlay } from './components/artwork-detail-overlay';
+import type { Item } from './lib/color-index-client';
 
 const NEUTRAL_ACCENT = '#6b7280';
+
+const isDetailEntry = (state: unknown) =>
+  (state as { cw?: string } | null)?.cw === 'detail';
 
 export function App() {
   const { hue, setHue, commitHash } = useHueFromUrlHash();
@@ -28,6 +33,9 @@ export function App() {
     imagesDown,
   } = useArtworksByHue(hue);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const [selected, setSelected] = useState<Item | null>(null);
+  const [needsReload, setNeedsReload] = useState(false);
+  const closingRef = useRef(false);
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -49,9 +57,53 @@ export function App() {
     return () => observer.disconnect();
   }, [revealMore]);
 
+  const open = useCallback((item: Item) => {
+    history.pushState({ cw: 'detail', id: item.id }, '');
+    setSelected(item);
+  }, []);
+
+  // Repeated Escape before popstate lands must not pop a second entry and walk
+  // the visitor off the site; a Forward-orphaned entry must still close.
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    if (isDetailEntry(history.state)) history.back();
+    else setSelected(null);
+    if (!isDetailEntry(history.state)) closingRef.current = false;
+  }, []);
+
+  useEffect(() => {
+    const onPopState = (event: PopStateEvent) => {
+      if (isDetailEntry(event.state)) return; // navigating into a detail entry
+      closingRef.current = false;
+      setSelected(null);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  useEffect(() => {
+    const onPreloadError = () => setNeedsReload(true);
+    window.addEventListener('vite:preloadError', onPreloadError as EventListener);
+    return () =>
+      window.removeEventListener('vite:preloadError', onPreloadError as EventListener);
+  }, []);
+
   return (
     <>
       <div className="hue-tint" />
+      {needsReload && (
+        <div className="fixed inset-x-0 top-0 z-[60] flex items-center justify-center gap-3 bg-ground/95 p-2 text-center font-mono text-xs text-ink/80">
+          A newer version of this page is available.
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="border border-ink/30 px-3 py-1 hover:text-ink"
+          >
+            Reload
+          </button>
+        </div>
+      )}
       <div className="fixed bottom-4 left-1/2 z-30 -translate-x-1/2 lg:bottom-auto lg:left-8 lg:top-1/2 lg:translate-x-0 lg:-translate-y-1/2">
         <HueWheel hue={hue} onHueChange={setHue} onGestureEnd={commitHash} />
       </div>
@@ -66,7 +118,7 @@ export function App() {
           <ArtworkMasonryGrid
             items={revealed}
             columns={columns}
-            onSelect={() => {}}
+            onSelect={open}
             onImageError={noteImageError}
             onImageLoad={noteImageLoad}
           />
@@ -81,6 +133,14 @@ export function App() {
         </div>
         <AttributionFooter />
       </main>
+
+      {selected && (
+        <ArtworkDetailOverlay
+          key={selected.id}
+          item={selected}
+          onRequestClose={requestClose}
+        />
+      )}
     </>
   );
 }

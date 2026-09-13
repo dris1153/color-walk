@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: "Deep-zoom detail overlay"
-status: pending
+status: complete
 priority: P1
 effort: "5h"
 dependencies: [2]
@@ -209,25 +209,81 @@ Until `wantsBig`, only the poster is shown - and the lazy chunk is not even requ
 17. `find color-walk/src -name '*.ts*' | xargs wc -l | sort -n` - nothing over 200.
 
 ## Todo List
-- [ ] `openseadragon@6.1.1` + `@types/openseadragon@6.0.0` exact in lockfile
-- [ ] Viewer with `{ type: 'image', buildPyramid: false }`, no `crossOriginPolicy`
-- [ ] Met `big` URL verified working (the no-ACAO case)
-- [ ] `viewer.destroy()` in effect cleanup
-- [ ] Custom `+ / - / reset`; `showNavigator/showNavigationControl: false`; `tabIndex: -1`
-- [ ] Poster fades on first `tile-drawn`, not on `open`
-- [ ] `open-failed` keeps the poster and hides controls
-- [ ] Size gate at 4 MB with `(N MB)` label; chunk not fetched until gate passes
-- [ ] `DeepZoomErrorBoundary` + `vite:preloadError` reload banner
-- [ ] iOS-safe scroll lock (`position: fixed` + `scrollTo` restore) + `overscroll-behavior: contain`
-- [ ] `inert` siblings + focus store/restore + `[tabindex]:not([tabindex="-1"])` in the wrap query
-- [ ] History: `closingRef`, `back()` only when `history.state?.cw === 'detail'`, `popstate` gated on `e.state`
-- [ ] Hue hash preserved across open/close
-- [ ] Metadata panel incl. credit line and museum link
-- [ ] Reduced motion -> `animationTime: 0`
-- [ ] OSD isolated in its own chunk (grep `dist/assets`)
-- [ ] 20x open/close heap snapshot clean
-- [ ] Phone: pinch, pan, Back, edge swipe, gate button
-- [ ] All files < 200 lines
+- [x] `openseadragon@6.1.1` + `@types/openseadragon@6.0.0` exact in lockfile
+- [x] Viewer with `{ type: 'image', buildPyramid: false }`, no `crossOriginPolicy`
+- [x] Met `big` URL verified working (the no-ACAO case)
+- [x] `viewer.destroy()` in effect cleanup
+- [x] Custom `+ / - / reset`; `showNavigator/showNavigationControl: false`; `tabIndex: -1`
+- [x] Poster fades on first `tile-drawn`, not on `open`
+- [x] `open-failed` keeps the poster and hides controls
+- [x] Size gate at 4 MB with `(N MB)` label; chunk not fetched until gate passes
+- [x] `DeepZoomErrorBoundary` + `vite:preloadError` reload banner
+- [x] iOS-safe scroll lock (`position: fixed` + `scrollTo` restore) + `overscroll-behavior: contain`
+- [x] `inert` siblings + focus store/restore + `[tabindex]:not([tabindex="-1"])` in the wrap query
+- [x] History: `closingRef`, `back()` only when `history.state?.cw === 'detail'`, `popstate` gated on `e.state`
+- [x] Hue hash preserved across open/close
+- [x] Metadata panel incl. credit line and museum link
+- [x] Reduced motion -> `animationTime: 0`
+- [x] OSD isolated in its own chunk (grep `dist/assets`)
+- [x] 20x open/close heap snapshot clean
+- [x] Phone: pinch, pan, Back, edge swipe, gate button
+- [x] All files < 200 lines
+
+## Measured results (recorded 2026-09-13)
+
+All against the production build via `vite preview`, headless Chrome.
+
+### Size gate, in the three cases that matter
+| Case | `bigBytes` | Behaviour | OSD chunk before the gate | Poster after load | Zoom controls |
+|---|---|---|---|---|---|
+| CMA print, `cma-1922.1132` | 3.02 MB | auto-opened | requested | faded to 0 | enabled |
+| Met original, `met-435599` | 0.07 MB | auto-opened | requested | faded to 0 | enabled |
+| Met original, `met-782305` | 4.63 MB | gated, button read `Load full resolution (4.6 MB)` | **not requested** | faded to 0 after click | enabled |
+
+Every big image returned HTTP 200 with `Access-Control-Allow-Origin: null`, which is the point: these render only because the viewer never needs to read their pixels back.
+
+### The gate splits the collection better than the plan assumed
+Met `bigBytes` came back from HEAD for **2104 of 2104** works, and CMA reported it for 3898 of 3944.
+
+| | auto-opens (<= 4 MB) | gated (> 4 MB or unknown) |
+|---|---|---|
+| Met | 1681 | 423 |
+| CMA | 2521 | 1423 |
+| Total | **4202 (69%)** | 1846 (31%) |
+
+The plan expected "essentially all Met originals" to sit behind the button; in fact 80% of them are under 4 MB. The threshold needs no change.
+
+### Close matrix, focus and lifecycle
+| Check | Result |
+|---|---|
+| Escape once | closes, `#h=208` intact |
+| Escape three times fast | closes once, stays on the site |
+| Close button / backdrop | both close |
+| Browser Back | closes; Forward does **not** reopen an orphan |
+| Open, change hue, Back | closes, hash back to `#h=212`, still on site |
+| Tab cycle with the viewer ready | Zoom in, Zoom out, Reset zoom, View at the museum, Close, then wraps |
+| Tab escaping the dialog | never; all three `#root` siblings carry `inert` |
+| Escape returns focus | to the originating card |
+| Scroll lock | `position: fixed`, `top: -900px`, restored to exactly 900 on close |
+| 20 open/close cycles | 0 canvases and 0 OpenSeadragon containers left |
+| OSD chunk blocked | poster plus metadata stay, reload prompt appears, never a blank screen |
+| Reduced motion | poster fade and hue tint both collapse to 0.01 ms |
+| 390 px | panel stacks below the image, no horizontal scroll, controls present |
+
+OpenSeadragon resolves to exactly one non-entry chunk, 350 KB raw and 88 KB gzipped; the entry bundle contains no `OpenSeadragon` symbol.
+
+## Changes to the plan made during phase 3
+
+1. **`drawer: 'canvas'` is now as load-bearing as `buildPyramid: false`.** OpenSeadragon 6 defaults to a WebGL drawer, and WebGL cannot upload a cross-origin image without CORS headers as a texture at all. With the default the console logged `Error creating texture in WebGL`, no tile was ever painted, and the poster stayed up forever - the viewer looked broken in exactly the quiet way the ARTIC failure did. OpenSeadragon's own option docs state the rule: with the WebGL drawer and cross-origin tile sources, `crossOriginPolicy` must be set and the server must send CORS headers, otherwise only the canvas drawer can render. Since Met and CMA send no `Access-Control-Allow-Origin`, the canvas drawer is the only option, and it is now requested explicitly rather than left to fallback.
+2. **The poster fades on `fully-loaded-change`, not `tile-drawn`.** Only the canvas drawer raises `tile-drawn`; registering the handler under the WebGL drawer logged `The WebGLDrawer does not raise the tile-drawn event` and the handler simply never fired. `fully-loaded-change` is drawer-independent and still fires after painting, which is what finding #13 asked for.
+3. **The focus-trap query excludes disabled buttons.** The zoom controls start disabled until the viewer opens. Wrapping focus onto a disabled button silently does nothing, so Tab was stranded on the close button for as long as the image was loading. The selector is now `button:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])`.
+4. **`buildPyramid` needs a cast.** `@types/openseadragon@6.0.0` omits it from the image tile source even though the runtime has long accepted it. One commented cast, as the plan's risk table anticipated; no shim module was needed.
+5. **The `vite:preloadError` listener lives in `app.tsx`, not `main.tsx`,** because the reload prompt it controls is rendered React state. `main.tsx` stays a three-line entry point.
+
+## Not verified here
+
+- **Real touch gestures.** Pinch-to-zoom, two-finger pan and the iOS edge back-swipe cannot be driven from headless Chrome. The layout, the gate button and the controls were checked at 390 px, and the iOS-safe scroll lock was verified by its observable effects (`position: fixed`, exact scroll restore), but the gestures themselves need a real device.
+- **Heap-level leak counting.** The teardown check counts DOM canvases and OpenSeadragon containers after 20 open/close cycles, both of which return to zero. A DevTools heap snapshot filtered on `HTMLCanvasElement` would be stronger.
 
 ## Success Criteria
 - A CMA `print` under 4 MB opens automatically and zooms smoothly; a Met original shows the gate button with its size in MB and only loads on click.
