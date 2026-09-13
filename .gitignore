@@ -8,3 +8,4 @@ node_modules/.tmp
 scripts/color-index/.cache/
 pnpm-lock.yaml
 yarn.lock
+pnpm-workspace.yaml

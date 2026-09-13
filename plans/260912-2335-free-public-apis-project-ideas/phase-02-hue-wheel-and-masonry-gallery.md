@@ -225,22 +225,22 @@ function pointToHue(el: HTMLElement, clientX: number, clientY: number): number {
 ## Related Code Files
 
 ### Create
-- `color-walk/src/hooks/use-hue-from-url-hash.ts`
-- `color-walk/src/hooks/use-column-count.ts`
-- `color-walk/src/hooks/use-artworks-by-hue.ts`
-- `color-walk/src/lib/color-index-client.ts` (fetch + module cache + abort + backoff; keeps the hook under 200 lines)
-- `color-walk/src/components/hue-wheel.tsx`
-- `color-walk/src/components/artwork-card.tsx`
-- `color-walk/src/components/artwork-masonry-grid.tsx`
-- `color-walk/src/components/gallery-status.tsx` (loading / error+retry / images-unavailable / end-of-list)
-- `color-walk/src/components/attribution-footer.tsx`
-- `color-walk/src/lib/hue-wheel-geometry.ts` (only if `hue-wheel.tsx` nears 180 lines)
-- `color-walk/public/fonts/fraunces-variable.woff2` (+ a second face only if the UI sans is not system)
+- `src/hooks/use-hue-from-url-hash.ts`
+- `src/hooks/use-column-count.ts`
+- `src/hooks/use-artworks-by-hue.ts`
+- `src/lib/color-index-client.ts` (fetch + module cache + abort + backoff; keeps the hook under 200 lines)
+- `src/components/hue-wheel.tsx`
+- `src/components/artwork-card.tsx`
+- `src/components/artwork-masonry-grid.tsx`
+- `src/components/gallery-status.tsx` (loading / error+retry / images-unavailable / end-of-list)
+- `src/components/attribution-footer.tsx`
+- `src/lib/hue-wheel-geometry.ts` (only if `hue-wheel.tsx` nears 180 lines)
+- `public/fonts/fraunces-variable.woff2` (+ a second face only if the UI sans is not system)
 
 ### Modify
-- `color-walk/src/app.tsx` - replace the phase-1 smoke placeholder with the real composition
-- `color-walk/src/styles/global.css` - token block above
-- `color-walk/index.html` - font preload, `<title>`, `lang="en"`, `<meta name="theme-color" content="#0b0b0c">`
+- `src/app.tsx` - replace the phase-1 smoke placeholder with the real composition
+- `src/styles/global.css` - token block above
+- `index.html` - font preload, `<title>`, `lang="en"`, `<meta name="theme-color" content="#0b0b0c">`
 
 ### Delete
 - Phase-1 smoke markup in `app.tsx` (the two probe `<img>` tags and the bucket-count log)
@@ -265,7 +265,7 @@ function pointToHue(el: HTMLElement, clientX: number, clientY: number): number {
 17. Offline test: throttle to Offline, change bucket -> error state appears, Retry is disabled ~2 s then enabled; go online, Retry succeeds.
 18. Broken-image test: block `images.metmuseum.org` in devtools request blocking, load a Met-heavy bucket -> hex fills persist, corner marks appear, banner appears after >8 errors.
 19. `npm run build`; Lighthouse mobile; record CLS and LCP.
-20. `find color-walk/src -name '*.ts*' | xargs wc -l | sort -n` - nothing over 200.
+20. `find src -name '*.ts*' | xargs wc -l | sort -n` - nothing over 200.
 
 ## Todo List
 - [x] Self-hosted Fraunces woff2 + preload; zero requests to `fonts.*`

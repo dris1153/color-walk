@@ -173,18 +173,18 @@ Until `wantsBig`, only the poster is shown - and the lazy chunk is not even requ
 ## Related Code Files
 
 ### Create
-- `color-walk/src/components/artwork-detail-overlay.tsx`
-- `color-walk/src/components/artwork-deep-zoom-viewer.tsx` (default export for `React.lazy`)
-- `color-walk/src/components/artwork-metadata-panel.tsx`
-- `color-walk/src/components/deep-zoom-error-boundary.tsx`
-- `color-walk/src/hooks/use-body-scroll-lock.ts` (iOS-safe; keeps the overlay under 200 lines)
-- `color-walk/src/hooks/use-inert-siblings.ts`
+- `src/components/artwork-detail-overlay.tsx`
+- `src/components/artwork-deep-zoom-viewer.tsx` (default export for `React.lazy`)
+- `src/components/artwork-metadata-panel.tsx`
+- `src/components/deep-zoom-error-boundary.tsx`
+- `src/hooks/use-body-scroll-lock.ts` (iOS-safe; keeps the overlay under 200 lines)
+- `src/hooks/use-inert-siblings.ts`
 
 ### Modify
-- `color-walk/src/app.tsx` - `selected` state, `open()`, `requestClose()`, `popstate`, render overlay
-- `color-walk/src/main.tsx` - `vite:preloadError` listener
-- `color-walk/src/components/artwork-masonry-grid.tsx` - pass `onSelect` through (contract already exists)
-- `color-walk/package.json` - add `openseadragon@6.1.1`, `@types/openseadragon@6.0.0` (exact, per `.npmrc`)
+- `src/app.tsx` - `selected` state, `open()`, `requestClose()`, `popstate`, render overlay
+- `src/main.tsx` - `vite:preloadError` listener
+- `src/components/artwork-masonry-grid.tsx` - pass `onSelect` through (contract already exists)
+- `package.json` - add `openseadragon@6.1.1`, `@types/openseadragon@6.0.0` (exact, per `.npmrc`)
 
 ### Delete
 - none
@@ -206,7 +206,7 @@ Until `wantsBig`, only the poster is shown - and the lazy chunk is not even requ
 14. Bundle check: `npm run build`; `grep -l OpenSeadragon dist/assets/*.js` must match exactly one non-entry chunk.
 15. Leak test: DevTools Memory -> snapshot, open+close 20 different artworks, force GC, snapshot again, filter `HTMLCanvasElement`. Count must return to baseline +/-1.
 16. Phone test: pinch, two-finger pan, Back, edge back-swipe, and a >4 MB work to confirm the gate button.
-17. `find color-walk/src -name '*.ts*' | xargs wc -l | sort -n` - nothing over 200.
+17. `find src -name '*.ts*' | xargs wc -l | sort -n` - nothing over 200.
 
 ## Todo List
 - [x] `openseadragon@6.1.1` + `@types/openseadragon@6.0.0` exact in lockfile

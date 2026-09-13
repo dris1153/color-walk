@@ -85,7 +85,7 @@ imagesDown                                -> "images aren't loading right now - 
 revealed.length === items.length && >0    -> quiet "end of this hue" line
 ```
 
-### `_headers` (Cloudflare Pages) - `color-walk/public/_headers`
+### `_headers` (Cloudflare Pages) - `public/_headers`
 ```
 /*
   Content-Security-Policy: default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: https://images.metmuseum.org https://openaccess-cdn.clevelandart.org; font-src 'self'; connect-src 'self' https://www.thecolorapi.com
@@ -111,17 +111,17 @@ Drop `https://www.thecolorapi.com` from `connect-src` if F5 is cut. Only write t
 ## Related Code Files
 
 ### Create
-- `color-walk/src/lib/color-name-service.ts`, `color-walk/src/hooks/use-hue-name.ts` (optional pair)
-- `color-walk/public/favicon.svg`, `color-walk/public/favicon-32.png`, `color-walk/public/og.png`
-- `color-walk/public/_headers` **or** `color-walk/vercel.json` - not both
-- `color-walk/README.md`
+- `src/lib/color-name-service.ts`, `src/hooks/use-hue-name.ts` (optional pair)
+- `public/favicon.svg`, `public/favicon-32.png`, `public/og.png`
+- `public/_headers` **or** `vercel.json` - not both
+- `README.md`
 
 ### Modify
-- `color-walk/index.html` - description, OG/Twitter (absolute URLs), icons
-- `color-walk/src/app.tsx` - title effect
-- `color-walk/src/components/gallery-status.tsx` - final copy + adjacent-hue buttons
-- `color-walk/src/components/hue-wheel.tsx` - use `useHueName` for the readout (optional)
-- `color-walk/package.json` - `wrangler` exact devDependency + `deploy` script
+- `index.html` - description, OG/Twitter (absolute URLs), icons
+- `src/app.tsx` - title effect
+- `src/components/gallery-status.tsx` - final copy + adjacent-hue buttons
+- `src/components/hue-wheel.tsx` - use `useHueName` for the readout (optional)
+- `package.json` - `wrangler` exact devDependency + `deploy` script
 
 ### Delete
 - `color-name-service.ts` + `use-hue-name.ts` if the Color API proves not worth the complexity
@@ -140,7 +140,7 @@ Drop `https://www.thecolorapi.com` from `connect-src` if F5 is cut. Only write t
 11. Lighthouse mobile from a **local** Chrome against the deployed URL. Record Performance / Accessibility / Best Practices / SEO. Usual offenders: caption contrast, unlabelled icon buttons, missing `aria-valuenow`.
 12. Re-run the phase-1 browser image smoke against the **deployed** origin (one Met, one CMA thumbnail, expect 200, no `Cf-Mitigated`). This is the pre-deploy ritual that would have caught the ARTIC failure.
 13. `README.md` - sections: what it is + screenshot; `npm ci` / `npm run dev` / `npm test` / `npm run build` / `npm run deploy`; **Rebuilding the colour index** (`npm run build:index`, ~1.6 GB into a gitignored `.cache/`, hours on first run, `--limit=N` and `--source=` flags, `npm rebuild sharp --foreground-scripts` if sharp fails to load under `ignore-scripts=true`, commit `public/index/*`); **Attribution** ("Images and data: The Metropolitan Museum of Art Open Access (CC0) and Cleveland Museum of Art Open Access (CC0)", links to both policies); **Why not the Art Institute of Chicago** (one paragraph on the 2026-09-13 WAF finding, so nobody re-adds it); **Not included** (list below).
-14. Final sweep: `grep -ri 'dangerouslySetInnerHTML\|artic\|iiif\|AIC-User-Agent' color-walk/src color-walk/scripts` -> zero hits; `npm audit` (incl. dev); `npm test`; `npm run build`; `wc -l` sweep under 200.
+14. Final sweep: `grep -ri 'dangerouslySetInnerHTML\|artic\|iiif\|AIC-User-Agent' src scripts` -> zero hits; `npm audit` (incl. dev); `npm test`; `npm run build`; `wc -l` sweep under 200.
 
 ## Todo List
 - [x] `gallery-status.tsx` final: empty + 2 adjacent-hue buttons, error, images-unavailable, end-of-list

@@ -1,4 +1,9 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
+
+/* Scoped explicitly: the repo root holds plans/ and README.md, and Tailwind's
+   automatic detection would mine class names out of the prose and ship them. */
+@source "../../src/**/*.{ts,tsx}";
+@source "../../index.html";
 
 /* Self-hosted deliberately: no external font origin is contacted at runtime, so
    no visitor IP reaches a third party and the CSP can keep font-src 'self'. */

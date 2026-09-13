@@ -146,30 +146,30 @@ export function distributeToColumns<T extends {w:number; h:number}>(items: T[], 
 ## Related Code Files
 
 ### Create - app shell
-- `color-walk/index.html`, `color-walk/package.json`, `color-walk/package-lock.json` (committed)
-- `color-walk/.npmrc` (`save-exact=true`, `ignore-scripts=true`), `color-walk/.nvmrc` (`22`), `color-walk/.gitignore` (adds `scripts/color-index/.cache/`)
-- `color-walk/vite.config.ts` (react + tailwind plugins, `test:` block), `color-walk/tsconfig.json`, `color-walk/tsconfig.node.json`
-- `color-walk/src/main.tsx`, `color-walk/src/app.tsx` (smoke-only placeholder), `color-walk/src/styles/global.css`
+- `index.html`, `package.json`, `package-lock.json` (committed)
+- `.npmrc` (`save-exact=true`, `ignore-scripts=true`), `.nvmrc` (`22`), `.gitignore` (adds `scripts/color-index/.cache/`)
+- `vite.config.ts` (react + tailwind plugins, `test:` block), `tsconfig.json`, `tsconfig.node.json`
+- `src/main.tsx`, `src/app.tsx` (smoke-only placeholder), `src/styles/global.css`
 
 ### Create - build scripts (Node 22 ESM)
-- `color-walk/scripts/color-index/build-color-index.mjs`
-- `color-walk/scripts/color-index/fetch-met-objects.mjs`
-- `color-walk/scripts/color-index/fetch-cma-artworks.mjs`
-- `color-walk/scripts/color-index/download-thumbnails.mjs`
-- `color-walk/scripts/color-index/extract-dominant-color.mjs`
-- `color-walk/scripts/color-index/normalize-artwork.mjs`
-- `color-walk/scripts/color-index/write-bucket-files.mjs`
-- `color-walk/scripts/color-index/http-util.mjs` (concurrency pool + backoff, shared - keeps the others under 200 lines)
+- `scripts/color-index/build-color-index.mjs`
+- `scripts/color-index/fetch-met-objects.mjs`
+- `scripts/color-index/fetch-cma-artworks.mjs`
+- `scripts/color-index/download-thumbnails.mjs`
+- `scripts/color-index/extract-dominant-color.mjs`
+- `scripts/color-index/normalize-artwork.mjs`
+- `scripts/color-index/write-bucket-files.mjs`
+- `scripts/color-index/http-util.mjs` (concurrency pool + backoff, shared - keeps the others under 200 lines)
 
 ### Create - runtime libs + tests
-- `color-walk/src/lib/color-math.ts`, `color-walk/src/lib/color-name-table.ts`, `color-walk/src/lib/masonry-distribute.ts`, `color-walk/src/lib/image-url.ts`
-- `color-walk/src/lib/__tests__/color-math.test.ts`, `masonry-distribute.test.ts`, `image-url.test.ts`
-- `color-walk/scripts/color-index/__tests__/normalize-artwork.test.ts`
-- `color-walk/scripts/color-index/__tests__/extract-dominant-color.test.ts`
-- `color-walk/scripts/color-index/__tests__/write-bucket-files.test.ts`
+- `src/lib/color-math.ts`, `src/lib/color-name-table.ts`, `src/lib/masonry-distribute.ts`, `src/lib/image-url.ts`
+- `src/lib/__tests__/color-math.test.ts`, `masonry-distribute.test.ts`, `image-url.test.ts`
+- `scripts/color-index/__tests__/normalize-artwork.test.ts`
+- `scripts/color-index/__tests__/extract-dominant-color.test.ts`
+- `scripts/color-index/__tests__/write-bucket-files.test.ts`
 
 ### Create - committed data
-- `color-walk/public/index/meta.json`, `bucket-00.json` .. `bucket-23.json`, `all.json`
+- `public/index/meta.json`, `bucket-00.json` .. `bucket-23.json`, `all.json`
 
 ### Delete / never create
 - Any `artic-*.ts`, `iiif-url.ts`, `AIC-User-Agent` handling. Vite template leftovers: `src/App.css`, `src/assets/react.svg`, `public/vite.svg`.
@@ -201,7 +201,7 @@ export function distributeToColumns<T extends {w:number; h:number}>(items: T[], 
 18. Run `npm run build:index -- --limit=50` end-to-end first. Only then the full run (expect hours and ~1.6 GB into `.cache/`).
 19. Fill in the Smoke results table below from `meta.json`.
 20. **Browser smoke (finding #1).** In `src/app.tsx`, temporarily render: a `fetch('/index/bucket-14.json')` count, one `<img>` with a Met `thumb`, one `<img>` with a CMA `thumb`, each with `onError` logging. `npm run dev`, open `localhost:5173`, confirm **both images paint** and Network shows `200` (not `403`, no `Cf-Mitigated` header). This is the check that ARTIC failed; repeat it before every deploy.
-21. `npm test`, `npm run build`, `npm audit` (including dev deps). `find color-walk -name '*.ts' -o -name '*.mjs' | xargs wc -l | sort -n` - nothing over 200.
+21. `npm test`, `npm run build`, `npm audit` (including dev deps). `find src scripts -name '*.ts' -o -name '*.mjs' | xargs wc -l | sort -n` - nothing over 200.
 
 ## Smoke results (recorded 2026-09-13)
 | Metric | Value |

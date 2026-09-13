@@ -26,7 +26,7 @@ Static deploy, no backend, no DB, no auth, no accounts.
 - **Runtime data layer = `fetch('/index/bucket-NN.json')`.** No rate limits, no debounce needed, no 429s. Paging is local array slicing.
 - **Deep zoom = OSD `{ type: 'image', url, buildPyramid: false }`.** `buildPyramid: false` is load-bearing: it skips the canvas pyramid build, so no CORS headers are required on museum images.
 - **Stack pinned exactly** (see Dependencies). Vite 8 / React 19 / TS 5.9 / Tailwind v4 / Vitest 5 / OSD 6.1.1. No router, no state library, no UI kit. Node 22.
-- App lives in `color-walk/`. Every file under 200 lines, kebab-case. Design brief unchanged: `#0b0b0c` ground, `#f2efe9` ink, hue-tinted background, display serif, 6 px gapless masonry, hash URL state.
+- App lives at the repository root. Every file under 200 lines, kebab-case. Design brief unchanged: `#0b0b0c` ground, `#f2efe9` ink, hue-tinted background, display serif, 6 px gapless masonry, hash URL state.
 
 ## Phases
 | # | Phase | Effort | Priority | Depends on | Status |
@@ -56,6 +56,23 @@ written up in the phase file it belongs to:
 - **The CSP needed no inline-style exception for React, only a hash for one
   OpenSeadragon `<style>` element.** The shipped policy has no `unsafe-inline`
   and no `unsafe-eval`. (phase 4)
+
+
+## Layout change, 2026-09-13
+The app was moved out of a nested `color-walk/` folder to the repository root,
+so `package.json`, `src/` and `plans/` are now siblings. File paths throughout
+these phase documents were rewritten to match. Two knock-on fixes came with it:
+
+- `node_modules` was reinstalled with `npm ci` rather than moved. A `pnpm dev`
+  run had left a pnpm store inside it, and pnpm's layout uses Windows junctions
+  that do not survive a move. `pnpm-lock.yaml` and `pnpm-workspace.yaml` are
+  gitignored; if something keeps recreating them, the exact-pin and `npm ci`
+  discipline in this project is worth protecting.
+- Tailwind's content scanning is now pinned to `src/` and `index.html` with
+  `@source`. At the repository root its automatic detection had started mining
+  class names out of `plans/` and `README.md`, which grew the stylesheet from
+  19.81 KB to 21.89 KB. With the scope restored the build is byte-identical to
+  the pre-move output.
 
 ## Dependencies
 **Build-time APIs (keyless, dev machine only):** Met search `https://collectionapi.metmuseum.org/public/collection/v1.1/search?q=*&hasImages=true&isPublicDomain=true&departmentId=11` (2721; highlights deferred to v2); Met objects `.../v1/objects/{id}` (CORS `*`, 80 req/s); CMA `https://openaccess-api.clevelandart.org/api/artworks/?cc0=1&has_image=1&type=Painting&limit=1000&skip=N&fields=...` (CORS `*`, 41,514 CC0 total, 3957 paintings).
