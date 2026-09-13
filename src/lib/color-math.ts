@@ -45,14 +45,32 @@ export function hslToHex(h: number, s: number, l: number): string {
 }
 
 /**
- * Closest hue first; washed-out works sink slightly so a vivid match outranks
- * a grey one at the same hue. Non-mutating, and stable within equal scores.
+ * How hard a lightness mismatch is punished, relative to a degree of hue.
+ * Measured 2026-09-13: at hue 30 the top-60 sets for tone 20 and tone 80 are
+ * completely disjoint at 0.3, 0.6 and 1.0 alike, so this is a feel choice.
  */
-export function sortByHueDistance<T extends { hue: number; sat: number }>(
+export const TONE_WEIGHT = 0.5;
+/** Prefers the vivid work at equal hue. Unrelated to a reader-chosen tone. */
+const VIVID_TIEBREAK = 0.15;
+
+/**
+ * Closest hue first, then closest lightness when a tone is chosen. Washed-out
+ * works sink slightly so a vivid match outranks a grey one at the same hue.
+ * Non-mutating, and stable within equal scores.
+ *
+ * Sorting rather than filtering is deliberate: no combination of hue and tone
+ * can empty the grid, it only reorders what the hue already loaded. A null
+ * target means no preference on that axis, which is how the all-colours view
+ * can still be ordered by tone alone.
+ */
+export function sortByColorDistance<T extends { hue: number; sat: number; lig: number }>(
   items: readonly T[],
-  targetH: number,
+  targetH: number | null,
+  targetL: number | null,
 ): T[] {
   const score = (it: T) =>
-    circularHueDistance(it.hue, targetH) + (100 - it.sat) * 0.15;
+    (targetH === null ? 0 : circularHueDistance(it.hue, targetH)) +
+    (100 - it.sat) * VIVID_TIEBREAK +
+    (targetL === null ? 0 : Math.abs(it.lig - targetL) * TONE_WEIGHT);
   return [...items].sort((a, b) => score(a) - score(b));
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { hueToBucket, sortByHueDistance } from '../lib/color-math';
+import { hueToBucket, sortByColorDistance } from '../lib/color-math';
 import { loadBucketNear, type Item } from '../lib/color-index-client';
 
 export type LoadStatus = 'loading' | 'ready' | 'error';
@@ -17,6 +17,7 @@ const IMAGE_ERROR_LIMIT = 8;
 
 export function useArtworksByHue(
   hue: number | null,
+  tone: number | null,
   columns: number,
 ): {
   items: Item[];
@@ -66,10 +67,11 @@ export function useArtworksByHue(
     };
   }, [bucket, reloadToken]);
 
-  // The sort key is the exact hue, so it changes only when the hue does.
+  // The sort key is the exact hue and tone, so it changes only when they do.
+  // Tone costs no request: `lig` is already on every item the bucket returned.
   const items = useMemo(
-    () => (hue === null ? raw : sortByHueDistance(raw, hue)),
-    [raw, hue],
+    () => (hue === null && tone === null ? raw : sortByColorDistance(raw, hue, tone)),
+    [raw, hue, tone],
   );
 
   // The single place a sort-key change resets the view: nothing already on

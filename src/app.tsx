@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useHueFromUrlHash } from './hooks/use-hue-from-url-hash';
+import { useViewFromUrlHash } from './hooks/use-view-from-url-hash';
 import { useColumnCount } from './hooks/use-column-count';
 import { useArtworksByHue } from './hooks/use-artworks-by-hue';
 import { HueWheel } from './components/hue-wheel';
+import { ToneSlider } from './components/tone-slider';
 import { ArtworkMasonryGrid } from './components/artwork-masonry-grid';
 import {
   GalleryLoading,
@@ -20,7 +21,7 @@ const isDetailEntry = (state: unknown) =>
   (state as { cw?: string } | null)?.cw === 'detail';
 
 export function App() {
-  const { hue, setHue, commitHash } = useHueFromUrlHash();
+  const { hue, tone, setHue, setTone, commitHash } = useViewFromUrlHash();
   const columns = useColumnCount();
   const {
     items,
@@ -32,7 +33,7 @@ export function App() {
     noteImageError,
     noteImageLoad,
     imagesDown,
-  } = useArtworksByHue(hue, columns);
+  } = useArtworksByHue(hue, tone, columns);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<Item | null>(null);
   const [needsReload, setNeedsReload] = useState(false);
@@ -65,7 +66,7 @@ export function App() {
   const jumpToHue = useCallback(
     (next: number) => {
       setHue(next);
-      commitHash(next);
+      commitHash({ hue: next });
     },
     [setHue, commitHash],
   );
@@ -117,11 +118,12 @@ export function App() {
           </button>
         </div>
       )}
-      <div className="fixed bottom-4 left-1/2 z-30 -translate-x-1/2 lg:bottom-auto lg:left-8 lg:top-1/2 lg:translate-x-0 lg:-translate-y-1/2">
+      <div className="fixed bottom-3 left-1/2 z-30 flex -translate-x-1/2 flex-col items-center gap-2 lg:bottom-auto lg:left-8 lg:top-1/2 lg:translate-x-0 lg:-translate-y-1/2">
         <HueWheel hue={hue} onHueChange={setHue} onGestureEnd={commitHash} />
+        <ToneSlider tone={tone} onToneChange={setTone} onGestureEnd={commitHash} />
       </div>
 
-      <main className="relative z-10 px-1.5 pb-56 pt-6 lg:pb-12 lg:pl-[320px]">
+      <main className="relative z-10 px-1.5 pb-64 pt-6 lg:pb-12 lg:pl-[320px]">
         <h1 className="sr-only">Color Walk</h1>
         {imagesDown && <ImagesUnavailableBanner />}
         {status === 'loading' && <GalleryLoading />}

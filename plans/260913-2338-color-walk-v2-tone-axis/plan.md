@@ -1,7 +1,7 @@
 ---
 title: "Color Walk v2 - lightness axis, favourites, real leak check"
 description: "Make the 4,406-work warm mass navigable by adding a lightness axis to the existing hue wheel, save works to localStorage from the detail overlay, and replace the DOM-node leak proxy with a heap snapshot. No new network, no backend, no new dependency."
-status: pending
+status: in-progress
 priority: P1
 effort: 7h
 tags: [feature, frontend, ux]
@@ -28,7 +28,7 @@ Everything here is runtime-only: `lig` is already on every index item, so the ne
 ## Phases
 | # | Phase | Effort | Priority | Depends on | Status |
 |---|---|---|---|---|---|
-| 1 | [Lightness axis](phase-01-lightness-axis.md) | 4h | P1 | - | pending |
+| 1 | [Lightness axis](phase-01-lightness-axis.md) | 4h | P1 | - | completed |
 | 2 | [Favourites in the overlay](phase-02-favourites.md) | 2h | P2 | 1 | pending |
 | 3 | [Heap-snapshot leak check](phase-03-heap-leak-check.md) | 1h | P3 | 2 | pending |
 

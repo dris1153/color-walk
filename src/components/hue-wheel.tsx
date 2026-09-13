@@ -2,11 +2,12 @@ import { useRef, type KeyboardEvent, type PointerEvent } from 'react';
 import { normalizeHue } from '../lib/color-math';
 import { nearestColorName } from '../lib/color-name-table';
 import { hueToHandlePosition, pointToHue } from '../lib/hue-wheel-geometry';
+import type { ViewState } from '../lib/view-hash';
 
 type Props = {
   hue: number | null;
   onHueChange: (hue: number | null) => void;
-  onGestureEnd: (hue?: number | null) => void;
+  onGestureEnd: (next?: Partial<ViewState>) => void;
 };
 
 const STEP = 5;
@@ -89,7 +90,7 @@ export function HueWheel({ hue, onHueChange, onGestureEnd }: Props) {
             aria-pressed={hue === null}
             onClick={() => {
               onHueChange(null);
-              onGestureEnd(null); // same tick as setHue, so the value is explicit
+              onGestureEnd({ hue: null }); // same tick as setHue, so be explicit
             }}
             className="rounded-full px-3 py-2 font-mono text-[10px] tracking-widest uppercase text-ink/70 hover:text-ink"
           >

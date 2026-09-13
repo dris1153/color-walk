@@ -1,7 +1,7 @@
 ---
 phase: 1
 title: "Lightness axis"
-status: pending
+status: completed
 priority: P1
 effort: "4h"
 dependencies: []
@@ -107,16 +107,47 @@ export function useViewFromUrlHash(): {
 8. Readout copy and `aria-valuetext`.
 9. Re-run the v1 browser checks: one index request per hue, zero on revisit, zero non-image requests while scrolling, CLS 0, close matrix intact.
 
+## Measured results (recorded 2026-09-13)
+
+Against the production bundle served with `public/_headers` applied.
+
+| Check | Target | Measured |
+|---|---|---|
+| Top-60 overlap at hue 30, tone 20 vs tone 80 | 0 | **0** |
+| Non-image requests during a tone change | 0 | **0** |
+| Scroll position across a tone change | reset to 0 | 1200 -> **0** |
+| Hash written during an 11-step drag | unchanged | unchanged |
+| Hash after release | `#h=212&l=70` | `#h=212&l=70` |
+| History entries added by a drag | 0 | **0** |
+| `#h=212` reload | hue 212, no tone | hue 212, `Any tone` |
+| `#h=212&l=30` reload | both restored | hue 212, tone 30, `Tone 30 / dark` |
+| "Any tone" reset | hash back to `#h=212` exactly | `#h=212`, no stray `&l=` |
+| Keyboard, three ArrowRight | value and hash follow | 50 -> 53, `#h=212&l=53` |
+| Tab order | wheel, All, slider, cards | `Hue`, `All`, `Lightness [range]`, first card |
+| Focus ring on the slider | visible | 2px |
+| `document.title` | tracks hue only | unchanged by tone |
+| 390px footer clearance at the true end of scroll | clear of the dock | **13px** |
+
+v1 regression, all still passing: 71 tests (up from 56), clean build, zero CSP violations on gallery and with an overlay open, CLS 0 on load and after scrolling, one index request per hue and zero on revisit, zero non-image requests while scrolling, the full overlay close matrix, focus return, scroll-lock restore, and no canvases left after 20 open/close cycles. Console clean. No file over 200 lines. `npm audit` clean.
+
+## Changes made during implementation
+
+1. **The pure hash logic lives in `src/lib/view-hash.ts`, not in the hook.** The test environment is `node` with no DOM, and adding jsdom for one parser would have meant a new dev dependency. Extracting `parseViewHash` and `formatViewHash` as pure functions gets them 11 unit tests and keeps the hook thin.
+2. **`sortByColorDistance` takes a nullable hue as well as a nullable tone.** The first draft passed `hue ?? 0` for the all-colours view, which silently sorted everything by distance to red once a tone was set. A null target now means no preference on that axis, so the all-colours view can be ordered by tone alone. Caught before it shipped, and pinned by a test.
+3. **Commit is driven by a native `change` listener, not React's `onChange`.** React maps `onChange` onto the DOM `input` event, which fires on every frame of a drag - exactly what the Safari history cap forbids. A ref-attached native `change` listener is the event that actually means "committed", and it is also what a value set by assistive technology raises. `onPointerUp` and `onKeyUp` remain as belt and braces; the 300 ms throttle makes the overlap free.
+4. **The slider is horizontal at both breakpoints**, in the same flex column as the wheel, rather than vertical beside it on desktop. Vertical range inputs need `writing-mode` gymnastics with uneven browser support, and the plan's own risk table rated that Med x Low. One orientation, no custom control, native behaviour intact.
+5. **`<main>` bottom padding went from `pb-56` to `pb-64`.** The dock measured 232px tall sitting 244px above the viewport bottom, so the old 224px let the dock cover the footer at the end of the scroll. Measured, not guessed - and the first measurement was itself wrong, because an infinite-scroll page never reaches its end in a single `scrollTo`. The check now scrolls until the document stops growing.
+
 ## Success Criteria
-- [ ] Changing tone reorders the grid and issues **zero** network requests.
-- [ ] At hue 30, top-60 overlap between tone 20 and tone 80 is 0.
-- [ ] `#h=212` alone behaves exactly as v1, and the written hash for a tone-free view is byte-identical to v1's.
-- [ ] `#h=212&l=30` restores both on reload; `#l=30` restores all-colours plus tone.
-- [ ] A tone change resets the reveal window and scrolls to top, like a hue change.
-- [ ] Dragging the slider writes the hash only on release; no history entries accumulate.
-- [ ] Slider reachable and operable by keyboard with a visible focus ring.
-- [ ] 390px: no overlap, no horizontal scroll.
-- [ ] `npm test` and `npm run build` green; no file over 200 lines; CSP still violation-free.
+- [x] Changing tone reorders the grid and issues **zero** network requests.
+- [x] At hue 30, top-60 overlap between tone 20 and tone 80 is 0.
+- [x] `#h=212` alone behaves exactly as v1, and the written hash for a tone-free view is byte-identical to v1's.
+- [x] `#h=212&l=30` restores both on reload; `#l=30` restores all-colours plus tone.
+- [x] A tone change resets the reveal window and scrolls to top, like a hue change.
+- [x] Dragging the slider writes the hash only on release; no history entries accumulate.
+- [x] Slider reachable and operable by keyboard with a visible focus ring.
+- [x] 390px: no overlap, no horizontal scroll.
+- [x] `npm test` and `npm run build` green; no file over 200 lines; CSP still violation-free.
 
 ## Risk Assessment
 | Risk | L x I | Mitigation |

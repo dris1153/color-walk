@@ -5,7 +5,8 @@ import {
   hslToHex,
   hueToBucket,
   normalizeHue,
-  sortByHueDistance,
+  sortByColorDistance,
+  TONE_WEIGHT,
 } from '../color-math';
 
 describe('circularHueDistance', () => {
@@ -76,28 +77,81 @@ describe('hslToHex', () => {
   });
 });
 
-describe('sortByHueDistance', () => {
+describe('sortByColorDistance', () => {
   const items = [
-    { id: 'far', hue: 300, sat: 90 },
-    { id: 'near', hue: 215, sat: 90 },
-    { id: 'exact', hue: 210, sat: 90 },
+    { id: 'far', hue: 300, sat: 90, lig: 50 },
+    { id: 'near', hue: 215, sat: 90, lig: 50 },
+    { id: 'exact', hue: 210, sat: 90, lig: 50 },
   ];
 
   it('orders by distance to the target hue', () => {
-    expect(sortByHueDistance(items, 210).map((i) => i.id)).toEqual(['exact', 'near', 'far']);
+    expect(sortByColorDistance(items, 210, null).map((i) => i.id)).toEqual([
+      'exact',
+      'near',
+      'far',
+    ]);
   });
 
   it('penalises washed-out works at the same hue', () => {
     const pair = [
-      { id: 'grey', hue: 210, sat: 10 },
-      { id: 'vivid', hue: 214, sat: 95 },
+      { id: 'grey', hue: 210, sat: 10, lig: 50 },
+      { id: 'vivid', hue: 214, sat: 95, lig: 50 },
     ];
-    expect(sortByHueDistance(pair, 210).map((i) => i.id)).toEqual(['vivid', 'grey']);
+    expect(sortByColorDistance(pair, 210, null).map((i) => i.id)).toEqual(['vivid', 'grey']);
+  });
+
+  it('ignores lightness entirely when no tone is chosen', () => {
+    const pair = [
+      { id: 'dark', hue: 210, sat: 90, lig: 10 },
+      { id: 'light', hue: 210, sat: 90, lig: 90 },
+    ];
+    expect(sortByColorDistance(pair, 210, null).map((i) => i.id)).toEqual(['dark', 'light']);
+    expect(sortByColorDistance(pair, 210, 95).map((i) => i.id)).toEqual(['light', 'dark']);
+  });
+
+  it('lets a closer tone outrank a closer hue once the gap is wide enough', () => {
+    const pair = [
+      { id: 'hue-match', hue: 210, sat: 90, lig: 10 },
+      { id: 'tone-match', hue: 225, sat: 90, lig: 80 },
+    ];
+    // hue-match: 0 + 1.5 + 70*0.5 = 36.5 | tone-match: 15 + 1.5 + 0 = 16.5
+    expect(sortByColorDistance(pair, 210, 80).map((i) => i.id)).toEqual([
+      'tone-match',
+      'hue-match',
+    ]);
+  });
+
+  it('weighs a lightness point at the documented fraction of a hue degree', () => {
+    expect(TONE_WEIGHT).toBe(0.5);
+    const pair = [
+      { id: 'a', hue: 200, sat: 50, lig: 50 }, // 10 hue away, tone exact
+      { id: 'b', hue: 210, sat: 50, lig: 29 }, // hue exact, 21 lightness away
+    ];
+    // a: 10 + 7.5 + 0 = 17.5 | b: 0 + 7.5 + 21*0.5 = 18
+    expect(sortByColorDistance(pair, 210, 50).map((i) => i.id)).toEqual(['a', 'b']);
+  });
+
+  it('orders by tone alone when there is no hue preference', () => {
+    const spread = [
+      { id: 'light-red', hue: 5, sat: 80, lig: 85 },
+      { id: 'dark-blue', hue: 220, sat: 80, lig: 15 },
+      { id: 'mid-green', hue: 130, sat: 80, lig: 50 },
+    ];
+    expect(sortByColorDistance(spread, null, 15).map((i) => i.id)).toEqual([
+      'dark-blue',
+      'mid-green',
+      'light-red',
+    ]);
+    expect(sortByColorDistance(spread, null, 85).map((i) => i.id)).toEqual([
+      'light-red',
+      'mid-green',
+      'dark-blue',
+    ]);
   });
 
   it('does not mutate its input', () => {
     const before = items.map((i) => i.id);
-    sortByHueDistance(items, 300);
+    sortByColorDistance(items, 300, 20);
     expect(items.map((i) => i.id)).toEqual(before);
   });
 });
