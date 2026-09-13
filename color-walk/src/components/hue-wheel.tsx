@@ -6,7 +6,7 @@ import { hueToHandlePosition, pointToHue } from '../lib/hue-wheel-geometry';
 type Props = {
   hue: number | null;
   onHueChange: (hue: number | null) => void;
-  onGestureEnd: () => void;
+  onGestureEnd: (hue?: number | null) => void;
 };
 
 const STEP = 5;
@@ -73,7 +73,7 @@ export function HueWheel({ hue, onHueChange, onGestureEnd }: Props) {
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onKeyDown={handleKeyDown}
-        onKeyUp={onGestureEnd}
+        onKeyUp={() => onGestureEnd()}
         className={`hue-ring relative rounded-full ${size}`}
       >
         {hue !== null && (
@@ -89,7 +89,7 @@ export function HueWheel({ hue, onHueChange, onGestureEnd }: Props) {
             aria-pressed={hue === null}
             onClick={() => {
               onHueChange(null);
-              onGestureEnd();
+              onGestureEnd(null); // same tick as setHue, so the value is explicit
             }}
             className="rounded-full px-3 py-2 font-mono text-[10px] tracking-widest uppercase text-ink/70 hover:text-ink"
           >

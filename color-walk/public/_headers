@@ -1,0 +1,23 @@
+# The style-src-elem hash covers the single <style> element OpenSeadragon 6.1.1
+# injects to drop a focus outline on touch devices. It is the only inline style
+# the app produces: React writes element styles through CSSOM, which CSP does not
+# police, so style-src-attr can stay strict. Bumping openseadragon means recomputing
+# this hash - a mismatch shows up as a console violation when an overlay opens.
+/*
+  Content-Security-Policy: default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'none'; script-src 'self'; style-src 'self'; style-src-elem 'self' 'sha256-9xTiqzfwFaL2SGb1rmr8gysEwVVjIvqWAgmZgqFqpEE='; img-src 'self' data: https://images.metmuseum.org https://openaccess-cdn.clevelandart.org; font-src 'self'; connect-src 'self'
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Content-Type-Options: nosniff
+  Permissions-Policy: geolocation=(), camera=(), microphone=()
+
+/index.html
+  Cache-Control: no-cache
+
+/index/*
+  Cache-Control: public, max-age=300, must-revalidate
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable

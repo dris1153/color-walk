@@ -14,7 +14,12 @@ function parseHash(hash: string): number | null {
 export function useHueFromUrlHash(): {
   hue: number | null;
   setHue: (h: number | null) => void;
-  commitHash: () => void;
+  /**
+   * Pass the value when committing in the same tick as `setHue`; React has not
+   * re-rendered yet, so without it the old hue would be written to the URL.
+   * A gesture end (pointerup, keyup) happens after a render and needs no value.
+   */
+  commitHash: (next?: number | null) => void;
 } {
   const [hue, setHue] = useState<number | null>(() => parseHash(window.location.hash));
   const hueRef = useRef(hue);
@@ -33,7 +38,8 @@ export function useHueFromUrlHash(): {
     }
   }, []);
 
-  const commitHash = useCallback(() => {
+  const commitHash = useCallback((next?: number | null) => {
+    if (next !== undefined) hueRef.current = next;
     window.clearTimeout(timer.current);
     const wait = COMMIT_THROTTLE_MS - (Date.now() - lastCommit.current);
     if (wait <= 0) write();

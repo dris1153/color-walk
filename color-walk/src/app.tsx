@@ -10,6 +10,7 @@ import {
   ImagesUnavailableBanner,
 } from './components/gallery-status';
 import { AttributionFooter } from './components/attribution-footer';
+import { nearestColorName } from './lib/color-name-table';
 import { ArtworkDetailOverlay } from './components/artwork-detail-overlay';
 import type { Item } from './lib/color-index-client';
 
@@ -31,7 +32,7 @@ export function App() {
     noteImageError,
     noteImageLoad,
     imagesDown,
-  } = useArtworksByHue(hue);
+  } = useArtworksByHue(hue, columns);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<Item | null>(null);
   const [needsReload, setNeedsReload] = useState(false);
@@ -42,6 +43,10 @@ export function App() {
       '--accent',
       hue === null ? NEUTRAL_ACCENT : `hsl(${hue} 70% 55%)`,
     );
+  }, [hue]);
+
+  useEffect(() => {
+    document.title = hue === null ? 'Color Walk' : `Color Walk - H ${hue} / ${nearestColorName(hue)}`;
   }, [hue]);
 
   useEffect(() => {
@@ -56,6 +61,14 @@ export function App() {
     observer.observe(el);
     return () => observer.disconnect();
   }, [revealMore]);
+
+  const jumpToHue = useCallback(
+    (next: number) => {
+      setHue(next);
+      commitHash(next);
+    },
+    [setHue, commitHash],
+  );
 
   const open = useCallback((item: Item) => {
     history.pushState({ cw: 'detail', id: item.id }, '');
@@ -127,6 +140,8 @@ export function App() {
             status={status}
             total={items.length}
             revealed={revealed.length}
+            hue={hue}
+            onHueChange={jumpToHue}
             retryDisabled={retryDisabled}
             onRetry={retry}
           />

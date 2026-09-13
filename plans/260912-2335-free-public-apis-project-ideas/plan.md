@@ -1,7 +1,7 @@
 ---
 title: "Color Walk - browse Met + Cleveland artworks by hue"
 description: "Static React site where dragging a hue wheel re-sorts a build-time color index of ~6.7k public-domain paintings from the Met and Cleveland Museum of Art, with single-image deep zoom."
-status: pending
+status: in-progress
 priority: P1
 effort: 23h
 tags: [feature, frontend, api, experimental]
@@ -29,12 +29,33 @@ Static deploy, no backend, no DB, no auth, no accounts.
 - App lives in `color-walk/`. Every file under 200 lines, kebab-case. Design brief unchanged: `#0b0b0c` ground, `#f2efe9` ink, hue-tinted background, display serif, 6 px gapless masonry, hash URL state.
 
 ## Phases
-| # | Phase | Effort | Priority | Depends on |
-|---|---|---|---|---|
-| 1 | [Scaffold + build-time color index](phase-01-scaffold-and-color-index-pipeline.md) | 7h | P1 | - |
-| 2 | [Hue wheel + masonry gallery](phase-02-hue-wheel-and-masonry-gallery.md) | 7h | P1 | 1 |
-| 3 | [Deep-zoom detail overlay](phase-03-deep-zoom-detail-overlay.md) | 5h | P1 | 2 |
-| 4 | [Polish, a11y and deploy](phase-04-polish-and-deploy.md) | 4h | P2 | 3 |
+| # | Phase | Effort | Priority | Depends on | Status |
+|---|---|---|---|---|---|
+| 1 | [Scaffold + build-time color index](phase-01-scaffold-and-color-index-pipeline.md) | 7h | P1 | - | complete |
+| 2 | [Hue wheel + masonry gallery](phase-02-hue-wheel-and-masonry-gallery.md) | 7h | P1 | 1 | complete |
+| 3 | [Deep-zoom detail overlay](phase-03-deep-zoom-detail-overlay.md) | 5h | P1 | 2 | complete |
+| 4 | [Polish, a11y and deploy](phase-04-polish-and-deploy.md) | 4h | P2 | 3 | **blocked on Cloudflare credentials** |
+
+The app is built, tested and verified end to end against the production bundle
+with its real response headers. The only outstanding work is the deploy itself
+and the two steps that depend on having a live origin: absolute OG URLs and the
+post-deploy image smoke. Run `npx wrangler login`, then `npm run deploy`.
+
+Four findings during implementation changed decisions the plan had made. Each is
+written up in the phase file it belongs to:
+
+- **The Met API is rate-limited by a WAF, not by its documented 80 req/s.** About
+  75 requests in quick succession earn a 403 for one to three minutes. The index
+  build crawls at ~1.25 req/s and resumes from cache. (phase 1)
+- **The collection is overwhelmingly warm.** Five hue buckets are empty and 95%
+  of works fall in three. Thin hues are padded from neighbouring buckets at
+  runtime rather than showing an empty wheel. (phase 2)
+- **`buildPyramid: false` is not sufficient for cross-origin images.**
+  OpenSeadragon 6 defaults to a WebGL drawer that cannot texture a non-CORS
+  image at all; `drawer: 'canvas'` is equally load-bearing. (phase 3)
+- **The CSP needed no inline-style exception for React, only a hash for one
+  OpenSeadragon `<style>` element.** The shipped policy has no `unsafe-inline`
+  and no `unsafe-eval`. (phase 4)
 
 ## Dependencies
 **Build-time APIs (keyless, dev machine only):** Met search `https://collectionapi.metmuseum.org/public/collection/v1.1/search?q=*&hasImages=true&isPublicDomain=true&departmentId=11` (2721; highlights deferred to v2); Met objects `.../v1/objects/{id}` (CORS `*`, 80 req/s); CMA `https://openaccess-api.clevelandart.org/api/artworks/?cc0=1&has_image=1&type=Painting&limit=1000&skip=N&fields=...` (CORS `*`, 41,514 CC0 total, 3957 paintings).

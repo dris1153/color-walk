@@ -5,10 +5,20 @@ import { loadBucketNear, type Item } from '../lib/color-index-client';
 export type LoadStatus = 'loading' | 'ready' | 'error';
 
 const REVEAL_STEP = 60;
+/**
+ * Rows revealed on a fresh hue. Cards below the fold still get fetched, because
+ * Chrome's lazy-load threshold is thousands of pixels on a slow connection, so
+ * a fixed 60 made a two-column phone pull ~40 museum images to show four.
+ * Twelve rows keeps the desktop behaviour identical at five columns.
+ */
+const INITIAL_ROWS = 12;
 const BACKOFF_MS = [2000, 4000, 8000];
 const IMAGE_ERROR_LIMIT = 8;
 
-export function useArtworksByHue(hue: number | null): {
+export function useArtworksByHue(
+  hue: number | null,
+  columns: number,
+): {
   items: Item[];
   revealed: Item[];
   status: LoadStatus;
@@ -20,9 +30,10 @@ export function useArtworksByHue(hue: number | null): {
   imagesDown: boolean;
 } {
   const bucket = hue === null ? null : hueToBucket(hue);
+  const initialReveal = columns * INITIAL_ROWS;
   const [raw, setRaw] = useState<Item[]>([]);
   const [status, setStatus] = useState<LoadStatus>('loading');
-  const [revealCount, setRevealCount] = useState(REVEAL_STEP);
+  const [revealCount, setRevealCount] = useState(initialReveal);
   const [retryDisabled, setRetryDisabled] = useState(false);
   const [imageErrors, setImageErrors] = useState(0);
   const [reloadToken, setReloadToken] = useState(0);
@@ -64,10 +75,10 @@ export function useArtworksByHue(hue: number | null): {
   // The single place a sort-key change resets the view: nothing already on
   // screen is ever silently reordered underneath the reader.
   useEffect(() => {
-    setRevealCount(REVEAL_STEP);
+    setRevealCount(initialReveal);
     setImageErrors(0);
     window.scrollTo(0, 0);
-  }, [items]);
+  }, [items, initialReveal]);
 
   const revealMore = useCallback(
     () => setRevealCount((c) => Math.min(c + REVEAL_STEP, items.length)),
@@ -86,6 +97,6 @@ export function useArtworksByHue(hue: number | null): {
     retryDisabled,
     noteImageError,
     noteImageLoad,
-    imagesDown: imageErrors > IMAGE_ERROR_LIMIT && revealCount === REVEAL_STEP,
+    imagesDown: imageErrors > IMAGE_ERROR_LIMIT && revealCount === initialReveal,
   };
 }

@@ -1,7 +1,7 @@
 ---
 phase: 4
 title: "Polish, a11y and deploy"
-status: pending
+status: blocked
 priority: P2
 effort: "4h"
 dependencies: [3]
@@ -143,21 +143,158 @@ Drop `https://www.thecolorapi.com` from `connect-src` if F5 is cut. Only write t
 14. Final sweep: `grep -ri 'dangerouslySetInnerHTML\|artic\|iiif\|AIC-User-Agent' color-walk/src color-walk/scripts` -> zero hits; `npm audit` (incl. dev); `npm test`; `npm run build`; `wc -l` sweep under 200.
 
 ## Todo List
-- [ ] `gallery-status.tsx` final: empty + 2 adjacent-hue buttons, error, images-unavailable, end-of-list
-- [ ] Per-hue `document.title`
-- [ ] Optional: `color-name-service.ts` (2 s timeout, latch-off) + `use-hue-name.ts`
-- [ ] Reduced motion verified in 3 places (card fade, tint, OSD)
-- [ ] `favicon.svg`, `favicon-32.png`, `og.png` (1200x630)
-- [ ] `wrangler` exact devDep + `npm run deploy` (no `npx`)
-- [ ] `_headers`: strict CSP attempt -> violations recorded -> `style-src-attr 'unsafe-inline'` landed
-- [ ] HSTS, `form-action 'none'`, `frame-ancestors 'none'`, `nosniff`, `Permissions-Policy`
-- [ ] Cache rules: `/index.html` no-cache, `/index/*` 300 s revalidate, `/assets/*` + `/fonts/*` immutable
-- [ ] Deployed; URL recorded here
-- [ ] OG/`og:url` absolute; sharing-debugger validated
-- [ ] Lighthouse mobile from local Chrome: perf > 90, a11y > 95 - numbers recorded here
-- [ ] Post-deploy image smoke (one Met, one CMA, 200, no `Cf-Mitigated`)
-- [ ] README incl. index-rebuild, attribution, and the ARTIC rationale
-- [ ] Final grep sweep, `npm audit`, `npm test`, `npm run build`, `wc -l` all clean
+- [x] `gallery-status.tsx` final: empty + 2 adjacent-hue buttons, error, images-unavailable, end-of-list
+- [x] Per-hue `document.title`
+- [ ] Optional: The Color API - **DROPPED**, it contradicts the runtime no-third-party-API rule
+- [x] Reduced motion verified in 3 places (card fade, tint, OSD)
+- [x] `favicon.svg`, `favicon-32.png`, `og.png` (1200x630)
+- [x] `wrangler` exact devDep + `npm run deploy` (no `npx`)
+- [x] `_headers`: strict CSP attempt -> violations recorded -> `style-src-attr 'unsafe-inline'` landed
+- [x] HSTS, `form-action 'none'`, `frame-ancestors 'none'`, `nosniff`, `Permissions-Policy`
+- [x] Cache rules: `/index.html` no-cache, `/index/*` 300 s revalidate, `/assets/*` + `/fonts/*` immutable
+- [ ] Deployed; URL recorded here - **BLOCKED, no Cloudflare credentials**
+- [ ] OG/`og:url` absolute - **BLOCKED on the deploy**
+- [x] Lighthouse mobile from local Chrome - numbers below; a11y met, perf not reachable
+- [ ] Post-deploy image smoke - **BLOCKED on the deploy** (passes locally)
+- [x] README incl. index-rebuild, attribution, and the ARTIC rationale
+- [x] Final grep sweep, `npm audit`, `npm test`, `npm run build`, `wc -l` all clean
+
+## Measured results (recorded 2026-09-13)
+
+Measured against the built bundle served with `public/_headers` actually applied,
+so the CSP and cache rules are the ones that will ship.
+
+### Lighthouse, mobile emulation with default throttling
+| Category | Target | Result |
+|---|---|---|
+| Accessibility | > 95 | **100** |
+| SEO | - | **100** |
+| Best Practices | > 90 | **77** |
+| Performance | > 90 | **73** |
+
+| Metric | Result |
+|---|---|
+| Cumulative Layout Shift | **0** |
+| Total Blocking Time | **0 ms** |
+| First Contentful Paint | 2.1 s |
+| Speed Index | 2.1 s |
+| Largest Contentful Paint | 9.7 s |
+
+### Two targets are not reachable, and why
+
+**Performance 73.** The blocker is LCP, and LCP here is a museum photograph.
+Lighthouse's mobile profile simulates roughly 1.6 Mbps, where the largest
+above-the-fold image alone (938 KB) takes about 4.7 s. Both museums already
+serve their smallest published derivative: Met `primaryImageSmall` is around
+600 px, Cleveland `web` has a median of 719 px, and there is nothing smaller to
+ask for. Getting under 2.5 s would need images resized to the ~190 px slot they
+are displayed in, which means an image proxy - a backend, explicitly out of
+scope for v1.
+
+Two fixes were applied first, and both are real wins for anyone on mobile data
+regardless of the score:
+
+| | before | after |
+|---|---|---|
+| images fetched on first load, 390 px | 41 | **24** |
+| image bytes on first load | 10.7 MB | **4.8 MB** |
+| Largest Contentful Paint | 14.8 s | **9.7 s** |
+| Speed Index | 4.1 s | **2.1 s** |
+
+The first was making the eager, high-priority count follow the column count
+instead of a fixed 8, so a two-column phone stops putting four off-screen images
+into the same race as the one that decides LCP. The second was making the
+initial reveal follow the column count too: Chrome's lazy-load threshold is
+thousands of pixels on a slow link, so rendering 60 cards made a phone fetch
+about 40 images to show four. Twelve rows leaves desktop behaviour identical at
+five columns and halves the mobile payload.
+
+**Best Practices 77.** Both failing audits are the same fact: `Set-Cookie` on
+image responses from `images.metmuseum.org`, namely `visid_incap_1661977`. That
+is Imperva Incapsula's visitor cookie, set by the Met's own WAF. Only proxying
+their images would remove it.
+
+### CSP: strict first, then exactly one exception
+
+Served with the strict `style-src 'self'` and no attribute exception, the result
+was not what the plan predicted:
+
+- **Gallery: zero violations.** React writes element styles through CSSOM
+  (`style.setProperty`), and CSP polices inline style *attributes* at parse
+  time, not CSSOM writes. So `style-src-attr 'unsafe-inline'` was never needed.
+- **With an overlay open: one violation,** `style-src-elem`. OpenSeadragon 6.1.1
+  injects a single `<style>` element carrying a media query that removes the
+  focus outline on touch devices.
+
+Rather than blanket-allow inline styles, that one element is covered by its
+hash, `sha256-9xTiqzfwFaL2SGb1rmr8gysEwVVjIvqWAgmZgqFqpEE=`, which matches what
+Chrome itself reported. The shipped policy contains **no `unsafe-inline` and no
+`unsafe-eval` anywhere**, and `connect-src` is `'self'` only. Re-measured:
+**zero violations on the gallery and with a deep-zoom overlay open.**
+
+The hash is pinned to OpenSeadragon 6.1.1, which the lockfile pins exactly.
+Bumping OpenSeadragon means recomputing it; the failure mode is a console
+violation when an overlay opens, and a focus outline returning on touch devices.
+This is recorded in a comment at the top of `public/_headers`.
+
+### Headers verified on the wire
+`curl -sI` against the served build returns the CSP, `Strict-Transport-Security:
+max-age=31536000; includeSubDomains`, `Referrer-Policy`, `X-Content-Type-Options:
+nosniff` and `Permissions-Policy`, plus `Cache-Control: public, max-age=300,
+must-revalidate` on `/index/*` and `immutable` on `/assets/*` and `/fonts/*`.
+
+### Regression after the phase 4 changes
+Phase 2 and phase 3 browser checks were re-run against the final build: one
+index request per hue and zero on revisit, zero non-image requests while
+scrolling, the thin-hue padding still leading with the nearest colours, the full
+close matrix, focus return, scroll-lock restore, and no canvases left after 20
+open/close cycles. The console is now clean: the favicon 404 is gone.
+
+## Changes to the plan made during phase 4
+
+1. **The Color API (F5) was dropped, not deferred.** It is a third-party call at
+   runtime, and the project's standing rule is that the runtime calls no
+   third-party API at all. Dropping it also lets `connect-src` stay `'self'`,
+   which is tighter than the policy the plan drafted. The local 24-name table is
+   the only source of colour names.
+2. **`style-src-elem` with a hash replaced `style-src-attr 'unsafe-inline'`,**
+   for the reasons measured above.
+3. **The empty state is effectively unreachable.** Phase 2's neighbour padding
+   means a hue only shows nothing if every bucket file is empty. The state and
+   its two adjacent-hue buttons are implemented as specified, but they could not
+   be exercised against real data, and the thinnest-bucket test the plan called
+   for no longer has a thin bucket to test.
+4. **A bug was found and fixed while wiring the adjacent-hue buttons.** The
+   centre "All" button called `setHue` and then committed the hash in the same
+   tick, so the hash was written from the pre-render value. It only appeared
+   correct in earlier tests because the 300 ms throttle happened to defer the
+   write until after the re-render. `commitHash` now takes the value explicitly
+   when the caller is committing in the same tick.
+5. **`public/robots.txt` was added,** which took SEO from 92 to 100.
+
+## Blocked: the deploy
+
+`npm run deploy` is wired and `wrangler` is pinned at 4.131.1 in
+`devDependencies`, but **no deploy happened.** There are no Cloudflare
+credentials on this machine: no `CLOUDFLARE_API_TOKEN`, no
+`CLOUDFLARE_ACCOUNT_ID`, no `~/.wrangler/config`, and `wrangler whoami` reports
+"You are not authenticated". `wrangler login` needs an interactive browser flow.
+
+Wrangler offers `--temporary` to publish under an anonymous preview account.
+That was deliberately not used: it would put the site on an account the owner
+does not control.
+
+Three items therefore remain, all of which need the deploy first:
+
+1. Run `npx wrangler login`, then `npm run deploy`, and record the URL.
+2. Replace the two `CW_HOST` placeholders in `index.html` with the deployed
+   origin - the `TODO(absolute-og)` comment marks them - then redeploy and check
+   the card in a sharing debugger. Relative OG URLs are ignored by most
+   scrapers.
+3. Re-run the browser image smoke against the deployed origin: one Met and one
+   Cleveland thumbnail, both 200, neither carrying `Cf-Mitigated`. It passes
+   locally; running it against the real origin is the pre-deploy ritual that
+   would catch a museum starting to block embeds.
 
 ## Success Criteria
 - Live URL loads; `#h=212` deep link restores hue 212 and its results.

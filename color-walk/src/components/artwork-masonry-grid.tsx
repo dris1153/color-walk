@@ -3,8 +3,12 @@ import { distributeToColumns } from '../lib/masonry-distribute';
 import type { Item } from '../lib/color-index-client';
 import { ArtworkCard } from './artwork-card';
 
-/** Above the fold, so these are fetched eagerly and at high priority. */
-const EAGER_COUNT = 8;
+/**
+ * Roughly what fits above the fold, so eager loading tracks the column count
+ * instead of a fixed 8. At two columns a fixed 8 puts four off-screen images
+ * into the same high-priority race as the one that decides LCP.
+ */
+const EAGER_ROWS = 2;
 
 type Props = {
   items: Item[];
@@ -23,8 +27,8 @@ export function ArtworkMasonryGrid({
 }: Props) {
   const cols = useMemo(() => distributeToColumns(items, columns), [items, columns]);
   const eagerIds = useMemo(
-    () => new Set(items.slice(0, EAGER_COUNT).map((i) => i.id)),
-    [items],
+    () => new Set(items.slice(0, columns * EAGER_ROWS).map((i) => i.id)),
+    [items, columns],
   );
 
   return (
