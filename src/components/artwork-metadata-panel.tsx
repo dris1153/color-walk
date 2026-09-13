@@ -2,7 +2,13 @@ import { isAllowedPageUrl } from '../lib/image-url';
 import { nearestColorName } from '../lib/color-name-table';
 import type { Item } from '../lib/color-index-client';
 
-export function ArtworkMetadataPanel({ item }: { item: Item }) {
+type Props = {
+  item: Item;
+  isSaved: boolean;
+  onToggleSave: (item: Item) => void;
+};
+
+export function ArtworkMetadataPanel({ item, isSaved, onToggleSave }: Props) {
   // OpenSeadragon and the browser will follow whatever URL they are handed, so
   // a hand-edited index file must not be able to aim either one elsewhere.
   const museumLink = isAllowedPageUrl(item.page) ? item.page : null;
@@ -27,6 +33,15 @@ export function ArtworkMetadataPanel({ item }: { item: Item }) {
       </div>
 
       {item.credit && <p className="text-xs leading-relaxed text-ink/50">{item.credit}</p>}
+
+      <button
+        type="button"
+        aria-pressed={isSaved}
+        onClick={() => onToggleSave(item)}
+        className="self-start border border-ink/25 px-3 py-1.5 font-mono text-[11px] tracking-widest uppercase text-ink/70 hover:text-ink aria-pressed:border-ink/60 aria-pressed:text-ink"
+      >
+        {isSaved ? 'Saved' : 'Save'}
+      </button>
 
       {museumLink && (
         <a

@@ -11,6 +11,8 @@ import {
   ImagesUnavailableBanner,
 } from './components/gallery-status';
 import { AttributionFooter } from './components/attribution-footer';
+import { SavedToggle } from './components/saved-toggle';
+import { useFavourites } from './hooks/use-favourites';
 import { nearestColorName } from './lib/color-name-table';
 import { ArtworkDetailOverlay } from './components/artwork-detail-overlay';
 import type { Item } from './lib/color-index-client';
@@ -34,6 +36,8 @@ export function App() {
     noteImageLoad,
     imagesDown,
   } = useArtworksByHue(hue, tone, columns);
+  const { favourites, isSaved, toggle: toggleSave } = useFavourites();
+  const [showingSaved, setShowingSaved] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<Item | null>(null);
   const [needsReload, setNeedsReload] = useState(false);
@@ -63,12 +67,28 @@ export function App() {
     return () => observer.disconnect();
   }, [revealMore]);
 
+  const browseHue = useCallback(
+    (next: number | null) => {
+      setShowingSaved(false);
+      setHue(next);
+    },
+    [setHue],
+  );
+
+  const browseTone = useCallback(
+    (next: number | null) => {
+      setShowingSaved(false);
+      setTone(next);
+    },
+    [setTone],
+  );
+
   const jumpToHue = useCallback(
     (next: number) => {
-      setHue(next);
+      browseHue(next);
       commitHash({ hue: next });
     },
-    [setHue, commitHash],
+    [browseHue, commitHash],
   );
 
   const open = useCallback((item: Item) => {
@@ -119,34 +139,41 @@ export function App() {
         </div>
       )}
       <div className="fixed bottom-3 left-1/2 z-30 flex -translate-x-1/2 flex-col items-center gap-2 lg:bottom-auto lg:left-8 lg:top-1/2 lg:translate-x-0 lg:-translate-y-1/2">
-        <HueWheel hue={hue} onHueChange={setHue} onGestureEnd={commitHash} />
-        <ToneSlider tone={tone} onToneChange={setTone} onGestureEnd={commitHash} />
+        <HueWheel hue={hue} onHueChange={browseHue} onGestureEnd={commitHash} />
+        <ToneSlider tone={tone} onToneChange={browseTone} onGestureEnd={commitHash} />
       </div>
 
       <main className="relative z-10 px-1.5 pb-64 pt-6 lg:pb-12 lg:pl-[320px]">
         <h1 className="sr-only">Color Walk</h1>
-        {imagesDown && <ImagesUnavailableBanner />}
-        {status === 'loading' && <GalleryLoading />}
+        <SavedToggle
+          count={favourites.length}
+          showingSaved={showingSaved}
+          onToggle={() => setShowingSaved((v) => !v)}
+        />
+        {imagesDown && !showingSaved && <ImagesUnavailableBanner />}
+        {status === 'loading' && !showingSaved && <GalleryLoading />}
         {/* Reserves a viewport so the footer starts below the fold and the
             arriving grid cannot shift anything the reader can see. */}
         <div className="min-h-screen">
           <ArtworkMasonryGrid
-            items={revealed}
+            items={showingSaved ? favourites : revealed}
             columns={columns}
             onSelect={open}
             onImageError={noteImageError}
             onImageLoad={noteImageLoad}
           />
           <div ref={sentinelRef} className="h-px" />
-          <GalleryStatus
-            status={status}
-            total={items.length}
-            revealed={revealed.length}
-            hue={hue}
-            onHueChange={jumpToHue}
-            retryDisabled={retryDisabled}
-            onRetry={retry}
-          />
+          {!showingSaved && (
+            <GalleryStatus
+              status={status}
+              total={items.length}
+              revealed={revealed.length}
+              hue={hue}
+              onHueChange={jumpToHue}
+              retryDisabled={retryDisabled}
+              onRetry={retry}
+            />
+          )}
         </div>
         <AttributionFooter />
       </main>
@@ -155,6 +182,8 @@ export function App() {
         <ArtworkDetailOverlay
           key={selected.id}
           item={selected}
+          isSaved={isSaved(selected.id)}
+          onToggleSave={toggleSave}
           onRequestClose={requestClose}
         />
       )}

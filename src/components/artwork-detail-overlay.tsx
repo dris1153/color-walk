@@ -17,9 +17,14 @@ const AUTO_LOAD_MAX_BYTES = 4_000_000;
  */
 const FOCUSABLE = 'button:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])';
 
-type Props = { item: Item; onRequestClose: () => void };
+type Props = {
+  item: Item;
+  isSaved: boolean;
+  onToggleSave: (item: Item) => void;
+  onRequestClose: () => void;
+};
 
-export function ArtworkDetailOverlay({ item, onRequestClose }: Props) {
+export function ArtworkDetailOverlay({ item, isSaved, onToggleSave, onRequestClose }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const canZoom = isAllowedImageUrl(item.big);
   const [posterVisible, setPosterVisible] = useState(true);
@@ -116,7 +121,7 @@ export function ArtworkDetailOverlay({ item, onRequestClose }: Props) {
         </div>
 
         <aside className="max-h-[45%] w-full shrink-0 border-t border-ink/10 lg:max-h-none lg:w-90 lg:border-l lg:border-t-0">
-          <ArtworkMetadataPanel item={item} />
+          <ArtworkMetadataPanel item={item} isSaved={isSaved} onToggleSave={onToggleSave} />
         </aside>
       </div>
 

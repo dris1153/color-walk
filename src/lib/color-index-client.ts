@@ -30,7 +30,7 @@ const HEX = /^#[0-9a-f]{6}$/i;
 const bucketCache = new Map<string, Item[]>();
 const inflight = new Map<string, Promise<Item[]>>();
 
-function isItem(x: unknown): x is Item {
+export function isItem(x: unknown): x is Item {
   if (typeof x !== 'object' || x === null) return false;
   const i = x as Record<string, unknown>;
   return (

@@ -29,7 +29,7 @@ Everything here is runtime-only: `lig` is already on every index item, so the ne
 | # | Phase | Effort | Priority | Depends on | Status |
 |---|---|---|---|---|---|
 | 1 | [Lightness axis](phase-01-lightness-axis.md) | 4h | P1 | - | completed |
-| 2 | [Favourites in the overlay](phase-02-favourites.md) | 2h | P2 | 1 | pending |
+| 2 | [Favourites in the overlay](phase-02-favourites.md) | 2h | P2 | 1 | completed |
 | 3 | [Heap-snapshot leak check](phase-03-heap-leak-check.md) | 1h | P3 | 2 | pending |
 
 Phase 3 runs last on purpose: its value is verifying the overlay *after* phase 2 adds state to it.
