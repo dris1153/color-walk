@@ -50,6 +50,14 @@ export function hslToHex(h: number, s: number, l: number): string {
  * completely disjoint at 0.3, 0.6 and 1.0 alike, so this is a feel choice.
  */
 export const TONE_WEIGHT = 0.5;
+/**
+ * The tone control travels only where works actually are. Measured across all
+ * 6,048: lightness runs 9 to 89, and just 4.7% sit outside 15..80. The old
+ * 0..100 range spent a third of its travel on almost nothing, and both ends are
+ * where the centre swatch degenerates to pure black or pure white.
+ */
+export const TONE_MIN = 15;
+export const TONE_MAX = 80;
 /** Prefers the vivid work at equal hue. Unrelated to a reader-chosen tone. */
 const VIVID_TIEBREAK = 0.15;
 

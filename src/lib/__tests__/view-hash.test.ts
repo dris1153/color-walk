@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatViewHash, parseViewHash } from '../view-hash';
+import { TONE_MAX, TONE_MIN } from '../color-math';
 
 describe('parseViewHash - v1 forms must keep working', () => {
   it('reads a bare hue', () => {
@@ -34,9 +35,14 @@ describe('parseViewHash - the new tone parameter', () => {
     expect(parseViewHash('#h=all&l=80')).toEqual({ hue: null, tone: 80 });
   });
 
-  it('clamps tone into 0..100', () => {
-    expect(parseViewHash('#l=-5').tone).toBe(0);
-    expect(parseViewHash('#l=500').tone).toBe(100);
+  it('clamps tone into the range the slider offers', () => {
+    expect(parseViewHash('#l=-5').tone).toBe(TONE_MIN);
+    expect(parseViewHash('#l=500').tone).toBe(TONE_MAX);
+    // Links written before the range narrowed still resolve, to the nearest
+    // tone that actually has works behind it.
+    expect(parseViewHash('#l=5').tone).toBe(TONE_MIN);
+    expect(parseViewHash('#l=95').tone).toBe(TONE_MAX);
+    expect(parseViewHash('#l=46').tone).toBe(46);
   });
 
   it('treats junk tone as no tone', () => {
@@ -52,15 +58,15 @@ describe('formatViewHash', () => {
 
   it('appends the tone only when one is set', () => {
     expect(formatViewHash({ hue: 212, tone: 30 })).toBe('#h=212&l=30');
-    expect(formatViewHash({ hue: null, tone: 0 })).toBe('#h=all&l=0');
+    expect(formatViewHash({ hue: null, tone: TONE_MIN })).toBe(`#h=all&l=${TONE_MIN}`);
   });
 
   it('round-trips every combination', () => {
     for (const view of [
       { hue: 212, tone: null },
       { hue: null, tone: null },
-      { hue: 0, tone: 0 },
-      { hue: 359, tone: 100 },
+      { hue: 0, tone: TONE_MIN },
+      { hue: 359, tone: TONE_MAX },
       { hue: null, tone: 45 },
     ]) {
       expect(parseViewHash(formatViewHash(view))).toEqual(view);

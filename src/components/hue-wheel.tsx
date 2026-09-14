@@ -1,7 +1,8 @@
 import { useRef, type KeyboardEvent, type PointerEvent } from 'react';
-import { normalizeHue } from '../lib/color-math';
+import { hslToHex, normalizeHue } from '../lib/color-math';
+import { HUE_SEGMENT_WEIGHTS } from '../lib/hue-density';
 import { nearestColorName } from '../lib/color-name-table';
-import { hueToHandlePosition, pointToHue } from '../lib/hue-wheel-geometry';
+import { hueToHandlePosition, pointToHue, ringSegments } from '../lib/hue-wheel-geometry';
 import type { ViewState } from '../lib/view-hash';
 
 type Props = {
@@ -12,6 +13,13 @@ type Props = {
 
 const STEP = 5;
 const PAGE_STEP = 15;
+const RING_SATURATION = 70;
+const RING_LIGHTNESS = 55;
+
+// Computed once: the weights are baked in at build time and never change.
+const SEGMENTS = ringSegments(HUE_SEGMENT_WEIGHTS, (hue) =>
+  hslToHex(hue, RING_SATURATION, RING_LIGHTNESS),
+);
 
 export function HueWheel({ hue, onHueChange, onGestureEnd }: Props) {
   const ringRef = useRef<HTMLDivElement>(null);
@@ -75,6 +83,24 @@ export function HueWheel({ hue, onHueChange, onGestureEnd }: Props) {
       onKeyUp={() => onGestureEnd()}
       className="hue-ring relative h-32 w-32 rounded-full lg:h-44 lg:w-44"
     >
+      {/* The ring is the collection, not a colour picker: each arc is one hue
+          bucket and its thickness is how many works live there. The five empty
+          buckets draw nothing, so the gaps are honest. */}
+      <svg
+        viewBox="0 0 100 100"
+        aria-hidden
+        className="pointer-events-none absolute inset-0 h-full w-full"
+      >
+        {SEGMENTS.map((segment) => (
+          <path
+            key={segment.d}
+            d={segment.d}
+            stroke={segment.color}
+            strokeWidth={segment.width}
+            fill="none"
+          />
+        ))}
+      </svg>
       {hue !== null && (
         <span
           aria-hidden

@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ChangeEvent, type CSSProperties } from 'react';
-import { hslToHex } from '../lib/color-math';
+import { hslToHex, TONE_MAX, TONE_MIN } from '../lib/color-math';
 import { toneName } from '../lib/color-name-table';
 import type { ViewState } from '../lib/view-hash';
 
@@ -11,14 +11,15 @@ type Props = {
 };
 
 /** Shown when no tone is chosen, so the thumb has somewhere neutral to sit. */
-const NEUTRAL_POSITION = 50;
+const NEUTRAL_POSITION = Math.round((TONE_MIN + TONE_MAX) / 2);
 const TRACK_SATURATION = 70;
 
 /** Dark to light in the chosen hue, so the control shows its own range. */
 function trackGradient(hue: number | null): string {
   const sat = hue === null ? 0 : TRACK_SATURATION;
   const at = (lightness: number) => hslToHex(hue ?? 0, sat, lightness);
-  return `linear-gradient(to right, ${at(6)}, ${at(28)}, ${at(50)}, ${at(72)}, ${at(94)})`;
+  const step = (TONE_MAX - TONE_MIN) / 4;
+  return `linear-gradient(to right, ${at(TONE_MIN)}, ${at(TONE_MIN + step)}, ${at(TONE_MIN + 2 * step)}, ${at(TONE_MIN + 3 * step)}, ${at(TONE_MAX)})`;
 }
 
 export function ToneSlider({ hue, tone, onToneChange, onGestureEnd }: Props) {
@@ -43,8 +44,8 @@ export function ToneSlider({ hue, tone, onToneChange, onGestureEnd }: Props) {
     <input
       ref={inputRef}
       type="range"
-      min={0}
-      max={100}
+      min={TONE_MIN}
+      max={TONE_MAX}
       step={1}
       value={tone ?? NEUTRAL_POSITION}
       onChange={handleChange}
