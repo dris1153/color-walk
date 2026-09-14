@@ -2,7 +2,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ALLOWED_IMAGE_HOSTS, ALLOWED_PAGE_HOSTS } from './normalize-artwork.mjs';
-import { BUCKET_COUNT, hueToBucket } from './write-bucket-files.mjs';
+import { BUCKET_COUNT, hueToBucket, pageCount } from './write-bucket-files.mjs';
 
 const INDEX_DIR = path.join(import.meta.dirname, '..', '..', 'public', 'index');
 const MIN_TOTAL = 5000;
@@ -40,15 +40,26 @@ const meta = await read('meta.json');
 let counted = 0;
 
 for (let b = 0; b < BUCKET_COUNT; b++) {
-  const file = await read(`bucket-${String(b).padStart(2, '0')}.json`);
-  if (file.bucket !== b) fail(`bucket ${b}: file reports bucket ${file.bucket}`);
-  if (file.count !== file.items.length) fail(`bucket ${b}: count disagrees with items length`);
-  if (file.count !== meta.byBucket[b]) fail(`bucket ${b}: count disagrees with meta.byBucket`);
-  for (const [i, item] of file.items.entries()) {
-    checkItem(item, b, fail);
-    if (i > 0 && file.items[i - 1].pct < item.pct) fail(`bucket ${b}: items not sorted by pct`);
+  const pad = String(b).padStart(2, '0');
+  const first = await read(`bucket-${pad}.json`);
+  if (first.bucket !== b) fail(`bucket ${b}: file reports bucket ${first.bucket}`);
+  if (first.count !== meta.byBucket[b]) fail(`bucket ${b}: count disagrees with meta.byBucket`);
+  if (first.pages !== pageCount(first.count)) fail(`bucket ${b}: pages ${first.pages} wrong for ${first.count} items`);
+
+  // Walk every page, so a bucket cannot quietly lose its overflow.
+  let seen = 0;
+  let previousPct = Infinity;
+  for (let page = 0; page < first.pages; page++) {
+    const file = page === 0 ? first : await read(`bucket-${pad}-${page}.json`);
+    for (const item of file.items) {
+      checkItem(item, b, fail);
+      if (item.pct > previousPct) fail(`bucket ${b}: items not sorted by pct across page ${page}`);
+      previousPct = item.pct;
+      seen++;
+    }
   }
-  counted += file.count;
+  if (seen !== first.count) fail(`bucket ${b}: pages hold ${seen} items, count says ${first.count}`);
+  counted += seen;
 }
 
 const all = await read('all.json');

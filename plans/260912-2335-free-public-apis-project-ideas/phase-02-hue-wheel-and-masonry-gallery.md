@@ -329,7 +329,10 @@ Failure paths, both exercised by blocking hosts in the browser rather than by ar
 
 ## Success Criteria
 - Changing bucket triggers exactly **one** `fetch` of `/index/bucket-NN.json`; returning to a visited bucket triggers **zero**; moving within a bucket triggers zero and still visibly reorders the grid.
-- Scrolling a bucket end to end produces zero non-image requests.
+- Scrolling a bucket end to end costs one index request, ~29 kB brotli,
+  per page of 600 items revealed, and no page is fetched twice. (Superseded 2026-09-14: the original
+  "zero non-image requests" was written for a 6,048-work index that fit one
+  file per bucket.)
 - Safari: 5 s of continuous dragging produces no history-throttle exception; the hash matches the final hue within 300 ms of release.
 - Sort order of already-revealed items never changes on `revealMore()` (verify by noting the first 6 ids, revealing twice, re-checking).
 - Bucket change resets scroll to the top and the reveal window to 60.

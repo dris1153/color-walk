@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { hueToBucket, sortByColorDistance } from '../lib/color-math';
-import { loadBucketNear, type Item } from '../lib/color-index-client';
+import { hasMorePages, loadBucketNear, loadBucketPage, type Item } from '../lib/color-index-client';
 
 export type LoadStatus = 'loading' | 'ready' | 'error';
 
@@ -32,7 +32,9 @@ export function useArtworksByHue(
 } {
   const bucket = hue === null ? null : hueToBucket(hue);
   const initialReveal = columns * INITIAL_ROWS;
-  const [raw, setRaw] = useState<Item[]>([]);
+  // One entry per loaded page. Pages are sorted independently and concatenated,
+  // never merged, so an arriving page cannot reorder what is already on screen.
+  const [pages, setPages] = useState<Item[][]>([]);
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [revealCount, setRevealCount] = useState(initialReveal);
   const [retryDisabled, setRetryDisabled] = useState(false);
@@ -40,17 +42,25 @@ export function useArtworksByHue(
   const [reloadToken, setReloadToken] = useState(0);
   const attempt = useRef(0);
   const backoffTimer = useRef<number | undefined>(undefined);
+  const loadedPages = useRef(1);
+  const fetchingPage = useRef(false);
+  /** Bumped on every bucket change, so a page that arrives late is discarded
+   * instead of appended to whatever hue the reader moved on to. */
+  const generation = useRef(0);
 
   useEffect(() => {
     // A newer hue must win, but the request itself is left to finish and fill
     // the module cache, so returning to this hue costs nothing.
     let stale = false;
+    generation.current += 1;
+    loadedPages.current = 1;
+    fetchingPage.current = false;
     setStatus('loading');
     loadBucketNear(bucket)
       .then((items) => {
         if (stale) return;
         attempt.current = 0;
-        setRaw(items);
+        setPages([items]);
         setStatus('ready');
       })
       .catch(() => {
@@ -70,22 +80,48 @@ export function useArtworksByHue(
   // The sort key is the exact hue and tone, so it changes only when they do.
   // Tone costs no request: `lig` is already on every item the bucket returned.
   const items = useMemo(
-    () => (hue === null && tone === null ? raw : sortByColorDistance(raw, hue, tone)),
-    [raw, hue, tone],
+    () =>
+      pages.flatMap((page) =>
+        hue === null && tone === null ? page : sortByColorDistance(page, hue, tone),
+      ),
+    [pages, hue, tone],
   );
 
   // The single place a sort-key change resets the view: nothing already on
-  // screen is ever silently reordered underneath the reader.
+  // screen is ever silently reordered underneath the reader. Keyed on the sort
+  // key itself, not on `items`, because appending a page also mints a new array
+  // and must not throw the reader back to the top.
   useEffect(() => {
     setRevealCount(initialReveal);
     setImageErrors(0);
     window.scrollTo(0, 0);
-  }, [items, initialReveal]);
+  }, [hue, tone, initialReveal]);
 
-  const revealMore = useCallback(
-    () => setRevealCount((c) => Math.min(c + REVEAL_STEP, items.length)),
-    [items.length],
-  );
+  const loadNextPage = useCallback(() => {
+    if (bucket === null || fetchingPage.current) return;
+    const page = loadedPages.current;
+    if (!hasMorePages(bucket, page)) return;
+    fetchingPage.current = true;
+    const mine = generation.current;
+    loadBucketPage(bucket, page)
+      .then((next) => {
+        if (generation.current !== mine) return;
+        fetchingPage.current = false;
+        loadedPages.current = page + 1;
+        setPages((p) => [...p, next]);
+      })
+      .catch(() => {
+        // A failed page leaves the reader on what is already loaded; the next
+        // revealMore retries it.
+        if (generation.current === mine) fetchingPage.current = false;
+      });
+  }, [bucket]);
+
+  const revealMore = useCallback(() => {
+    const next = Math.min(revealCount + REVEAL_STEP, items.length);
+    setRevealCount(next);
+    if (items.length - next <= REVEAL_STEP) loadNextPage();
+  }, [revealCount, items.length, loadNextPage]);
   const retry = useCallback(() => setReloadToken((t) => t + 1), []);
   const noteImageError = useCallback(() => setImageErrors((c) => c + 1), []);
   const noteImageLoad = useCallback(() => setImageErrors(0), []);

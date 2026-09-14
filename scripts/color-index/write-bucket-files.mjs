@@ -5,6 +5,13 @@ export const BUCKET_COUNT = 24;
 export const BUCKET_WIDTH = 360 / BUCKET_COUNT;
 /** The wheel-centre "all colours" view; enough to fill several screens, small enough to ship. */
 export const ALL_LIMIT = 300;
+/**
+ * Works per bucket file. At ~500 bytes an item that is roughly 55 KB gzipped,
+ * small enough to fetch without blocking first paint. The hottest bucket holds
+ * 4,406 works today and is projected past 30,000, so one file per bucket stopped
+ * being viable; overflow spills into numbered pages instead of being capped.
+ */
+export const PAGE_SIZE = 600;
 
 const wrap360 = (h) => ((h % 360) + 360) % 360;
 
@@ -33,7 +40,12 @@ export function buildAll(items) {
   return { count: top.length, items: top };
 }
 
-const bucketFileName = (b) => `bucket-${String(b).padStart(2, '0')}.json`;
+const bucketFileName = (b, page = 0) =>
+  page === 0
+    ? `bucket-${String(b).padStart(2, '0')}.json`
+    : `bucket-${String(b).padStart(2, '0')}-${page}.json`;
+
+export const pageCount = (total) => Math.max(1, Math.ceil(total / PAGE_SIZE));
 
 /** Minified on purpose: pretty-printing this index costs ~30% more bytes in git and over the wire. */
 export async function writeBucketFiles(items, outDir, dropped = {}) {
@@ -42,7 +54,17 @@ export async function writeBucketFiles(items, outDir, dropped = {}) {
   const all = buildAll(items);
 
   for (const b of buckets) {
-    await writeFile(path.join(outDir, bucketFileName(b.bucket)), JSON.stringify(b));
+    const pages = pageCount(b.count);
+    for (let page = 0; page < pages; page++) {
+      const items = b.items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+      // Page 0 carries the bucket's true total and page count; later pages are
+      // just more items, fetched only once a reader scrolls that far.
+      const body =
+        page === 0
+          ? { bucket: b.bucket, center: b.center, count: b.count, pages, items }
+          : { bucket: b.bucket, page, items };
+      await writeFile(path.join(outDir, bucketFileName(b.bucket, page)), JSON.stringify(body));
+    }
   }
   await writeFile(path.join(outDir, 'all.json'), JSON.stringify(all));
 

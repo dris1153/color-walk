@@ -50,13 +50,23 @@ export function isItem(x: unknown): x is Item {
   );
 }
 
-async function fetchBucket(url: string): Promise<Item[]> {
+/** Page 0 of a bucket declares how many pages it has. Derived from the file, so
+ * unlike a cursor it cannot drift out of step with what the caller holds. */
+const totalPages = new Map<number, number>();
+
+const pageUrl = (bucket: number | null, page: number): string =>
+  page === 0
+    ? bucketFileUrl(bucket)
+    : `/index/bucket-${String(bucket).padStart(2, '0')}-${page}.json`;
+
+async function fetchBucket(url: string, bucket: number | null): Promise<Item[]> {
   const res = await fetch(url);
   if (!res.ok) throw new Error('index-load-failed');
   const data: unknown = await res.json();
-  const raw = (data as { items?: unknown })?.items;
-  if (!Array.isArray(raw)) throw new Error('index-load-failed');
-  return raw.filter(isItem);
+  const body = data as { items?: unknown; pages?: unknown };
+  if (!Array.isArray(body?.items)) throw new Error('index-load-failed');
+  if (bucket !== null && typeof body.pages === 'number') totalPages.set(bucket, body.pages);
+  return body.items.filter(isItem);
 }
 
 /**
@@ -65,14 +75,14 @@ async function fetchBucket(url: string): Promise<Item[]> {
  * shared rather than aborted - cancelling a same-origin static file saves
  * nothing and only earns a duplicate request on the next hue change.
  */
-function loadOneBucket(bucket: number | null): Promise<Item[]> {
-  const url = bucketFileUrl(bucket);
+function loadOneBucket(bucket: number | null, page = 0): Promise<Item[]> {
+  const url = pageUrl(bucket, page);
   const hit = bucketCache.get(url);
   if (hit) return Promise.resolve(hit);
   const pending = inflight.get(url);
   if (pending) return pending;
 
-  const request = fetchBucket(url)
+  const request = fetchBucket(url, bucket)
     .then((items) => {
       bucketCache.set(url, items);
       inflight.delete(url);
@@ -104,4 +114,19 @@ export async function loadBucketNear(bucket: number | null): Promise<Item[]> {
     out.push(...a, ...b);
   }
   return out;
+}
+
+/** `loaded` is the caller's own page count, so two views of one bucket cannot
+ * steal each other's place in it. */
+export function hasMorePages(bucket: number | null, loaded: number): boolean {
+  if (bucket === null) return false;
+  return loaded < (totalPages.get(bucket) ?? 1);
+}
+
+/**
+ * Only the primary bucket pages. Neighbours pad a thin hue, and a thin hue has
+ * few works by definition, so their first 600 is already more than enough.
+ */
+export function loadBucketPage(bucket: number, page: number): Promise<Item[]> {
+  return loadOneBucket(bucket, page);
 }
