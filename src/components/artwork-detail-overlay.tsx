@@ -22,7 +22,7 @@ type Props = {
   isSaved: boolean;
   onToggleSave: (item: Item) => void;
   onRequestClose: () => void;
-  onBrowseColour: (item: Item) => void;
+  onBrowseColour: (hue: number, lightness: number) => void;
 };
 
 export function ArtworkDetailOverlay({

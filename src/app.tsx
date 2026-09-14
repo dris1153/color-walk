@@ -17,7 +17,6 @@ import { useDetailOverlay } from './hooks/use-detail-overlay';
 import { nearestColorName } from './lib/color-name-table';
 import { clampTone } from './lib/color-math';
 import { ArtworkDetailOverlay } from './components/artwork-detail-overlay';
-import type { Item } from './lib/color-index-client';
 
 const NEUTRAL_ACCENT = '#6b7280';
 
@@ -40,7 +39,7 @@ export function App() {
   const sentinelRef = useRevealOnScroll(revealMore);
   const { selected, open, requestClose } = useDetailOverlay();
   const [needsReload, setNeedsReload] = useState(false);
-  const [pendingColour, setPendingColour] = useState<Item | null>(null);
+  const [pendingColour, setPendingColour] = useState<{ hue: number; lig: number } | null>(null);
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -81,8 +80,8 @@ export function App() {
   // just the hue: the swatch showed one colour, and hue alone would answer with
   // that hue at every lightness.
   const browseColour = useCallback(
-    (item: Item) => {
-      setPendingColour(item);
+    (hue: number, lig: number) => {
+      setPendingColour({ hue, lig });
       requestClose();
     },
     [requestClose],

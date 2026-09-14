@@ -1,6 +1,10 @@
 import { bucketFileUrl, isAllowedImageUrl } from './image-url';
 import { BUCKET_COUNT } from './color-math';
 
+/** A colour the work also holds: [hue, sat, lig, share]. `hex` is derived with
+ *  hslToHex rather than stored, which is both smaller and safe by construction. */
+export type PaletteEntry = readonly [number, number, number, number];
+
 export type Item = {
   id: string;
   src: 'met' | 'cma';
@@ -19,6 +23,7 @@ export type Item = {
   pct: number;
   page: string;
   credit: string;
+  p?: PaletteEntry[];
 };
 
 /** One reveal window. Below this a hue is padded from neighbouring buckets. */
@@ -27,6 +32,17 @@ export const MIN_ITEMS = 60;
 const MAX_RINGS = 11;
 
 const HEX = /^#[0-9a-f]{6}$/i;
+
+const isPalette = (x: unknown): x is PaletteEntry[] =>
+  Array.isArray(x) &&
+  x.every(
+    (e) =>
+      Array.isArray(e) &&
+      e.length === 4 &&
+      e.every((n) => typeof n === 'number' && Number.isFinite(n)) &&
+      e[0]! >= 0 &&
+      e[0]! < 360,
+  );
 const bucketCache = new Map<string, Item[]>();
 const inflight = new Map<string, Promise<Item[]>>();
 
@@ -46,7 +62,8 @@ export function isItem(x: unknown): x is Item {
     // hex reaches an inline style value, so it is checked before it is trusted
     typeof i.hex === 'string' &&
     HEX.test(i.hex) &&
-    isAllowedImageUrl(i.thumb)
+    isAllowedImageUrl(i.thumb) &&
+    (i.p === undefined || isPalette(i.p))
   );
 }
 

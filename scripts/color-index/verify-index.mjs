@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ALLOWED_IMAGE_HOSTS, ALLOWED_PAGE_HOSTS } from './normalize-artwork.mjs';
 import { BUCKET_COUNT, hueToBucket, pageCount } from './write-bucket-files.mjs';
+import { MAX_PALETTE } from './extract-dominant-color.mjs';
 
 const INDEX_DIR = path.join(import.meta.dirname, '..', '..', 'public', 'index');
 const MIN_TOTAL = 5000;
@@ -28,6 +29,13 @@ function checkItem(item, bucket, fail) {
   if (!(item.pct > 0 && item.pct <= 1)) fail(`${at}: pct ${item.pct} out of range`);
   if (!(item.w > 0 && item.h > 0)) fail(`${at}: missing dimensions`);
   if (!HEX.test(item.hex)) fail(`${at}: hex ${item.hex} malformed`);
+  if (item.p !== undefined) {
+    const ok =
+      Array.isArray(item.p) &&
+      item.p.length <= MAX_PALETTE &&
+      item.p.every((e) => Array.isArray(e) && e.length === 4 && e[0] >= 0 && e[0] < 360);
+    if (!ok) fail(`${at}: palette malformed`);
+  }
   if (bucket !== null && hueToBucket(item.hue) !== bucket) fail(`${at}: hue belongs in bucket ${hueToBucket(item.hue)}`);
 }
 

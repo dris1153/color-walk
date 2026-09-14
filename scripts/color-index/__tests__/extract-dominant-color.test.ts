@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
-import { extractDominantColor } from '../extract-dominant-color.mjs';
+import { MAX_PALETTE, MIN_PALETTE_SHARE, extractDominantColor } from '../extract-dominant-color.mjs';
 
 const BLUE = { r: 26, g: 128, b: 230 }; // hsl(210 80% 50%)
 const RED = { r: 230, g: 26, b: 26 }; // hsl(0 80% 50%)
@@ -57,5 +57,42 @@ describe('extractDominantColor', () => {
     expect(color!.sat).toBeLessThanOrEqual(100);
     expect(color!.lig).toBeGreaterThanOrEqual(0);
     expect(color!.lig).toBeLessThanOrEqual(100);
+  });
+});
+
+describe('the colours a work also holds', () => {
+  it('reports the runner-up, strongest first, without the winner', async () => {
+    const color = await extractDominantColor(await banded(BLUE, 360, RED));
+    expect(color!.p).toHaveLength(1);
+    const [hue, , , share] = color!.p[0]! as number[];
+    expect(Math.abs(hue! - 0)).toBeLessThanOrEqual(4);
+    expect(Math.abs(share! - 0.25)).toBeLessThanOrEqual(0.03);
+    // The winner is already on the item; repeating it here would be dead bytes.
+    expect(color!.p.some(([h]: number[]) => Math.abs(h! - 210) <= 4)).toBe(false);
+  });
+
+  it('leaves out a colour too faint to be one', async () => {
+    // 24px of 480 is 5%, under the share a colour has to reach.
+    const color = await extractDominantColor(await banded(RED, 24, BLUE));
+    expect(color!.p).toEqual([]);
+  });
+
+  it('keeps at most MAX_PALETTE of them', async () => {
+    const top = await solid(480, 160, RED);
+    const mid = await solid(480, 160, { r: 230, g: 200, b: 26 });
+    const buf = await sharp({ create: { width: 480, height: 480, channels: 3, background: BLUE } })
+      .composite([
+        { input: top, top: 0, left: 0 },
+        { input: mid, top: 160, left: 0 },
+      ])
+      .png()
+      .toBuffer();
+    const color = await extractDominantColor(buf);
+    expect(color!.p.length).toBeLessThanOrEqual(MAX_PALETTE);
+    for (const [, , , share] of color!.p) expect(share).toBeGreaterThanOrEqual(MIN_PALETTE_SHARE);
+  });
+
+  it('gives an achromatic work no palette at all, because it has no colour', async () => {
+    expect(await extractDominantColor(await solid(64, 64, GREY))).toBeNull();
   });
 });

@@ -1,12 +1,13 @@
 import { isAllowedPageUrl } from '../lib/image-url';
 import { nearestColorName } from '../lib/color-name-table';
+import { hslToHex } from '../lib/color-math';
 import type { Item } from '../lib/color-index-client';
 
 type Props = {
   item: Item;
   isSaved: boolean;
   onToggleSave: (item: Item) => void;
-  onBrowseColour: (item: Item) => void;
+  onBrowseColour: (hue: number, lightness: number) => void;
 };
 
 export function ArtworkMetadataPanel({ item, isSaved, onToggleSave, onBrowseColour }: Props) {
@@ -26,7 +27,7 @@ export function ArtworkMetadataPanel({ item, isSaved, onToggleSave, onBrowseColo
           end, closable but with no route to anything like it. */}
       <button
         type="button"
-        onClick={() => onBrowseColour(item)}
+        onClick={() => onBrowseColour(item.hue, item.lig)}
         className="group flex items-center gap-3 self-start text-left"
       >
         <span
@@ -38,6 +39,22 @@ export function ArtworkMetadataPanel({ item, isSaved, onToggleSave, onBrowseColo
           Browse H {item.hue} / {nearestColorName(item.hue)}
         </span>
       </button>
+
+      {item.p && item.p.length > 0 && (
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] tracking-widest uppercase text-ink/40">Also</span>
+          {item.p.map(([hue, sat, lig, share]) => (
+            <button
+              key={hue}
+              type="button"
+              onClick={() => onBrowseColour(hue, lig)}
+              aria-label={`Browse ${nearestColorName(hue)}, ${Math.round(share * 100)}% of this work`}
+              className="h-6 w-6 shrink-0 border border-ink/20 hover:border-ink/60"
+              style={{ backgroundColor: hslToHex(hue, sat, lig) }}
+            />
+          ))}
+        </div>
+      )}
 
       {item.credit && <p className="text-xs leading-relaxed text-ink/50">{item.credit}</p>}
 
