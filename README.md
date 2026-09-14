@@ -23,12 +23,37 @@ npm run dev     # http://localhost:5173
 npm test        # unit tests (vitest)
 npm run build   # type-check and bundle into dist/
 npm run preview # serve the built bundle
-npm run deploy  # build, then publish to Cloudflare Pages
 ```
 
-`npm run deploy` uses the `wrangler` pinned in `devDependencies`. Run
-`npx wrangler login` once first. Never invoke `npx wrangler` for the deploy
-itself: that would fetch an unpinned version.
+## Deploying
+
+The site deploys to Vercel through its Git integration: connect the repository
+once in the Vercel dashboard and every push to `main` ships. There is no deploy
+command and no deploy credential on your machine, which is the point.
+
+Two settings matter on the Vercel side:
+
+- **Node version 22**, to match `.nvmrc`.
+- **Analytics and Speed Insights stay off.** Both inject a third-party script.
+  That breaks `script-src 'self'` and the standing rule that this site calls no
+  third-party API at runtime - the rule that already cost it a colour-naming
+  API.
+
+`vercel.json` carries the response headers. It is the only place they live:
+Vercel ignores Cloudflare's `_headers` format, so a stray copy of that file
+would leave the site with no Content-Security-Policy while looking protected.
+
+After the first deploy, confirm the headers actually arrived rather than
+assuming they did:
+
+```bash
+curl -sI https://<host>/               # CSP, HSTS, Referrer-Policy, nosniff, Permissions-Policy
+curl -sI https://<host>/index/all.json # public, max-age=300, must-revalidate
+```
+
+The second one is a correctness check, not a performance one. Bucket files carry
+no content hash, so a browser holding a stale one after an index rebuild asks
+for images that no longer exist.
 
 Note that `.npmrc` sets both `save-exact=true` and `ignore-scripts=true`, so
 every dependency is pinned to an exact version and no package install script
@@ -143,11 +168,18 @@ characters, and returns `null` rather than throwing. The runtime re-checks the
 same allowlist before any URL reaches an `<img>` or the viewer, because the
 index is a file and files get edited.
 
-`public/_headers` carries the Content-Security-Policy. It contains no
-`unsafe-inline` and no `unsafe-eval`. The one inline `<style>` on the page is
-the focus-outline rule OpenSeadragon injects, covered by a `style-src-elem`
-hash; bumping OpenSeadragon means recomputing it. React's element styles go
-through CSSOM, which CSP does not police, so `style-src-attr` stays strict.
+`vercel.json` carries the Content-Security-Policy. It contains no
+`unsafe-inline` and no `unsafe-eval`.
+
+The single inline `<style>` on the page is the rule OpenSeadragon 6.1.1 injects
+to drop a focus outline on touch devices, covered by the `style-src-elem` hash
+`sha256-9xTiqzfwFaL2SGb1rmr8gysEwVVjIvqWAgmZgqFqpEE=`. **Bumping OpenSeadragon
+means recomputing that hash**; a mismatch shows up as a console violation the
+moment an overlay opens, and the focus outline returns on touch devices. JSON
+has no comments, so this note is the only place that warning lives.
+
+React writes element styles through CSSOM, which CSP does not police, so
+`style-src-attr` stays strict.
 
 There is no `dangerouslySetInnerHTML` anywhere in the repository.
 

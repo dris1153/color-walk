@@ -296,6 +296,32 @@ Three items therefore remain, all of which need the deploy first:
    locally; running it against the real origin is the pre-deploy ritual that
    would catch a museum starting to block embeds.
 
+## Host changed to Vercel, 2026-09-14
+
+This phase was built and measured against Cloudflare Pages' `_headers` format.
+The project now ships on Vercel, so `public/_headers` was deleted, `wrangler`
+and the `deploy` script were removed, and the same policy moved verbatim into
+`vercel.json`. Deployment runs through Vercel's Git integration, so there is no
+deploy command and no local credential.
+
+The CSP string is unchanged byte for byte, hash included. What changed is the
+pattern syntax: Vercel's `source` is path-to-regexp, so `/index/*` became
+`/index/:path*` and `/*` became `/(.*)`.
+
+**A latent gap in this phase's own config surfaced during that translation.**
+Header rules match the request pathname, and a visitor loading the site requests
+`/`, not `/index.html`. The `no-cache` rule written here almost certainly never
+applied to the page anyone actually loads. It went unnoticed because the site
+was never deployed. `vercel.json` declares both paths, and a local server that
+applies the real config now confirms `/` carries `Cache-Control: no-cache`.
+
+The three items still blocked on a live URL are unchanged, only the mechanism
+differs: push to GitHub and connect the repo on Vercel, then replace the
+`CW_HOST` placeholders in `index.html`, and re-run the image smoke and
+Lighthouse against the deployed origin.
+
+Reasoning and the full verification list: [the Vercel migration brainstorm](../260914-0957-vercel-deploy-migration/reports/brainstorm-01-cloudflare-to-vercel.md).
+
 ## Success Criteria
 - Live URL loads; `#h=212` deep link restores hue 212 and its results.
 - Lighthouse mobile on the deployed URL: Performance > 90, Accessibility > 95, Best Practices > 90 - numbers pasted into this file.

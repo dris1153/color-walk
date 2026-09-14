@@ -9,8 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "build:index": "node scripts/color-index/build-color-index.mjs",
-    "verify:index": "node scripts/color-index/verify-index.mjs",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name color-walk"
+    "verify:index": "node scripts/color-index/verify-index.mjs"
   },
   "dependencies": {
     "openseadragon": "6.1.1",
@@ -28,7 +27,6 @@
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
     "vite": "8.3.0",
-    "vitest": "5.0.0",
-    "wrangler": "4.131.1"
+    "vitest": "5.0.0"
   }
 }
