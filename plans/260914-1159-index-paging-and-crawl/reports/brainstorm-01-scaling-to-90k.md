@@ -117,6 +117,79 @@ Tests 88 (up from 84), build clean.
 - **Source selection** via `--met-departments=6,14,21` and `--cma-types=all`, replacing the hardcoded `departmentId=11`.
 - **The index is rewritten at the end of every run** from whatever is cached, so the site always reflects the crawl so far rather than needing all 24 hours before it is usable.
 
+### Part 2, built and measured 2026-09-14
+
+#### The Met search will not serve what it counts
+
+The approved plan reached departments through the v1.1 search. It cannot get
+what that plan needs: **the endpoint stops serving ids past offset 10,000**,
+whatever total it reports.
+
+| Department | search reports | search serves | department listing |
+|---|---|---|---|
+| Asian Art (6) | 34,217 | **10,000** | 37,320 |
+| Islamic Art (14) | 15,231 | **10,000** | 15,755 |
+| Modern Art (21) | 13,152 | **10,000** | 15,148 |
+| European Paintings (11) | 2,721 | 2,721 | 2,644 |
+
+Built as designed, the crawl would have quietly stopped at ~32,700 Met works
+instead of 62,600, with no error to say so.
+
+`/v1/objects?departmentIds=N` has no cap: one request returns the whole id
+list, 37,320 for Asian Art, all distinct. It does not filter, so 3-15% of what
+it returns is not public domain or has no image - `normalizeArtwork` already
+drops exactly those, so the cost is wasted requests, not bad data.
+
+**Neither source is a superset of the other.** European Paintings is the proof:
+search has 2,721, the listing has 2,644, and the union is 2,724. Taking either
+one alone loses works, so ids come from the union of both.
+
+Date-range partitioning was tried first and rejected: splitting Asian Art into
+five date ranges keeps every range under the cap, but the ranges sum to 27,429
+of 34,217 because undated works match no range at all.
+
+#### CMA paging drops records
+
+`skip` paging over a live result set is lossy, and `sort` is accepted and then
+ignored, so there is no stable order to page. A full pass over the 3,957 CC0
+paintings returns **3,956** distinct ids. Four consecutive passes returned the
+same 3,956; the missing `2015.591` is still CC0, still a Painting, still has an
+image, and still fetches fine by accession number.
+
+So the repeat-pass fix does not close the gap, and four passes are pure waste.
+Kept at one retry, which catches a record the shuffle moved, and the residual is
+logged rather than chased. The real remedy is the JSONL cache: once a record is
+seen it stays seen, which the old rewrite-everything cache could never offer
+because CMA was re-fetched from scratch every run.
+
+#### Verified
+
+| Check | Result |
+|---|---|
+| Legacy cache carried over | 2,721 objects moved into the JSONL, 0 unparseable |
+| Rebuild reproduces the shipped index | 6,049 works, met 2,104 / cma 3,945, 21 of 24 bucket files byte-identical |
+| `--minutes=1` on an uncrawled department | stopped at 50/9,973, wrote the index, printed the resume command |
+| **SIGKILL mid-crawl** | 31 records appended, **0 unparseable lines**, file still newline-terminated |
+| Resume after that kill | 31 cached, id list reused, crawl continued |
+| `npm run crawl:status` from a second terminal | stage, progress, rate, ETA, resume command |
+| Half-finished id search | not cached, so the next run re-searches instead of trusting it |
+| Tests / build | 97 tests, clean build |
+
+**Not verified, and why:** a graceful Ctrl+C could not be tested programmatically
+on Windows - `child.kill('SIGINT')` terminates the process instead of delivering
+a catchable signal, so the handler never runs. What is covered instead: the
+handler itself by unit test, the same stop path end to end through `--minutes`,
+and durability under the strictly worse SIGKILL. A real Ctrl+C in a terminal
+raises a genuine console event, which Node does surface as SIGINT.
+
+#### Revised scope
+
+| | Planned | Reachable |
+|---|---|---|
+| Met, four departments | 62,600 | **~71,000 objects to fetch**, ~65,000 usable |
+| CMA, all CC0 with image | 41,514 | 41,514 |
+| Met crawl at 1.25 req/s | ~14 h | **~16 h** |
+
 ### Cost
 
 | Stage | Estimate |
