@@ -1,32 +1,10 @@
+import names from './bucket-color-names.json';
 import { hueToBucket } from './color-math';
 
-/** One name per 15-degree bucket; index is the bucket, so bucket 0 = red. */
-export const BUCKET_COLOR_NAMES = [
-  'Red',
-  'Vermilion',
-  'Orange',
-  'Amber',
-  'Yellow',
-  'Chartreuse',
-  'Lime',
-  'Spring Green',
-  'Green',
-  'Emerald',
-  'Jade',
-  'Turquoise',
-  'Cyan',
-  'Azure',
-  'Cerulean',
-  'Sapphire',
-  'Blue',
-  'Indigo',
-  'Violet',
-  'Purple',
-  'Magenta',
-  'Fuchsia',
-  'Rose',
-  'Crimson',
-] as const;
+/** One name per 15-degree bucket; index is the bucket, so bucket 0 = red. Kept
+ *  in JSON because the build script that writes the per-hue share pages is .mjs
+ *  and cannot import this module. */
+export const BUCKET_COLOR_NAMES = names as readonly string[];
 
 export function nearestColorName(hue: number): string {
   return BUCKET_COLOR_NAMES[hueToBucket(hue)] ?? 'Red';

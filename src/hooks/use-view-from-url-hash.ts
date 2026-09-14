@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { formatViewHash, parseViewHash, type ViewState } from '../lib/view-hash';
+import { formatViewHash, parseViewHash, parseViewLocation, type ViewState } from '../lib/view-hash';
 import type { HueSelection } from '../lib/color-math';
 
 /** Safari throttles history writes to ~100 per 30 s, so never write per pointermove. */
 const COMMIT_THROTTLE_MS = 300;
+
+/** The root once the view has moved off a per-hue page, the current path otherwise. */
+const here = () => (window.location.pathname.startsWith('/c/') ? '/' : window.location.pathname);
 
 export function useViewFromUrlHash(): {
   hue: HueSelection;
@@ -23,7 +26,9 @@ export function useViewFromUrlHash(): {
    */
   pushHash: (next: Partial<ViewState>) => void;
 } {
-  const [view, setView] = useState<ViewState>(() => parseViewHash(window.location.hash));
+  const [view, setView] = useState<ViewState>(() =>
+    parseViewLocation(window.location.pathname, window.location.hash),
+  );
   const viewRef = useRef(view);
   viewRef.current = view;
   const lastCommit = useRef(0);
@@ -36,7 +41,9 @@ export function useViewFromUrlHash(): {
     lastCommit.current = Date.now();
     try {
       // history.state is passed through so the detail overlay's marker survives.
-      history.replaceState(history.state, '', formatViewHash(viewRef.current));
+      // Leaving /c/210 once the reader moves, so a link copied afterwards does
+      // not still promise Cerulean.
+      history.replaceState(history.state, '', `${here()}${formatViewHash(viewRef.current)}`);
     } catch {
       /* Safari throttle: the view still lives in React state, so nothing breaks. */
     }
@@ -60,7 +67,7 @@ export function useViewFromUrlHash(): {
     try {
       // null state, not the current one: a colour is a gallery entry, and
       // copying a detail marker here would leave a phantom overlay entry.
-      history.pushState(null, '', formatViewHash(viewRef.current));
+      history.pushState(null, '', `${here()}${formatViewHash(viewRef.current)}`);
     } catch {
       /* Safari throttle: the view still lives in React state, so nothing breaks. */
     }

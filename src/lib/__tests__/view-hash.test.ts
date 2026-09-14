@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatViewHash, parseViewHash } from '../view-hash';
+import { formatViewHash, parseViewHash, parseViewLocation } from '../view-hash';
 import { TONE_MAX, TONE_MIN } from '../color-math';
 
 describe('parseViewHash - v1 forms must keep working', () => {
@@ -96,5 +96,28 @@ describe('the monochrome view', () => {
 
   it('is not confused with a hue named in words', () => {
     expect(parseViewHash('#h=greyish').hue).toBeNull();
+  });
+});
+
+describe('parseViewLocation - the per-hue pages', () => {
+  it('opens on the hue its page is named for', () => {
+    expect(parseViewLocation('/c/210', '')).toEqual({ hue: 210, tone: null });
+    expect(parseViewLocation('/c/0', '')).toEqual({ hue: 0, tone: null });
+    expect(parseViewLocation('/c/grey', '')).toEqual({ hue: 'grey', tone: null });
+  });
+
+  it('tolerates the trailing slash a directory page may arrive with', () => {
+    expect(parseViewLocation('/c/210/', '')).toEqual({ hue: 210, tone: null });
+  });
+
+  it('lets the fragment win, because it says more than the page does', () => {
+    expect(parseViewLocation('/c/210', '#h=45&l=30')).toEqual({ hue: 45, tone: 30 });
+    expect(parseViewLocation('/c/210', '#h=all')).toEqual({ hue: null, tone: null });
+  });
+
+  it('ignores a path that is not one of ours', () => {
+    for (const p of ['/', '/c', '/c/210/extra', '/c/abc', '/c/999', '/x/210']) {
+      expect(parseViewLocation(p, '')).toEqual({ hue: null, tone: null });
+    }
   });
 });

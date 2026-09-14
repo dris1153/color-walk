@@ -44,3 +44,16 @@ export function formatViewHash({ hue, tone }: ViewState): string {
   const base = `#h=${hue === null ? 'all' : hue}`;
   return tone === null ? base : `${base}&l=${tone}`;
 }
+
+/** `/c/210` and `/c/grey` are real pages so a shared link previews as that
+ *  colour; only bucket centres have one. The fragment wins when both are set,
+ *  because it is the more specific of the two. */
+export function parseViewLocation(pathname: string, hash: string): ViewState {
+  if (hash.includes('h=') || hash.includes('l=')) return parseViewHash(hash);
+  const parts = pathname.split('/').filter(Boolean);
+  if (parts.length !== 2 || parts[0] !== 'c') return parseViewHash(hash);
+  const slug = parts[1]!;
+  if (slug === 'grey') return { hue: 'grey', tone: null };
+  const n = Number(slug);
+  return Number.isInteger(n) && n >= 0 && n < 360 ? { hue: n, tone: null } : parseViewHash(hash);
+}

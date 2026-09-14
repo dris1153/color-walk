@@ -151,6 +151,26 @@ dropped at normalisation.
 If `import('sharp')` fails, run `npm rebuild sharp --foreground-scripts`. That
 is needed because `ignore-scripts=true` suppresses sharp's install script.
 
+### Share cards and the per-hue pages
+
+`#h=210` is a fragment, so it never reaches a server and a crawler reading a
+shared link only ever sees the front page. Every hue therefore also has a real
+page:
+
+```bash
+npm run build:og      # 25 share cards into public/og/, committed
+npm run build         # writes dist/c/<hue>/index.html for each of them
+```
+
+`npm run build:og` reads the committed index and the thumbnail cache, so run it
+after rebuilding the index; the cards are 1200x630 JPEGs, about 2.3 MB in total.
+The page step runs inside `npm run build` and needs nothing but `dist/`.
+
+`/c/210` opens on Cerulean and previews as blue works; `/c/grey` opens on the
+monochrome index. Only bucket centres have a page. The fragment still wins when
+both are present, and the path is dropped as soon as the reader moves, so a link
+copied afterwards does not keep promising a colour they left.
+
 ### How a work gets its colour
 
 `extract-dominant-color.mjs` downsamples each thumbnail to 48 pixels on its
