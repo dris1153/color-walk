@@ -14,8 +14,8 @@
     <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
     <link rel="apple-touch-icon" href="/favicon-32.png" />
 
-    <!-- TODO(absolute-og): og:url and og:image must be absolute or scrapers ignore
-         them. Replace CW_HOST with the deployed origin after the first deploy. -->
+    <!-- Absolute, because scrapers ignore relative OG URLs. VITE_APP_URL is
+         replaced at build time and asserted by scripts/assert-html-env.mjs. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Color Walk" />
     <meta property="og:title" content="Color Walk" />
@@ -23,8 +23,8 @@
       property="og:description"
       content="Pick a colour and walk through public-domain paintings that share it."
     />
-    <meta property="og:url" content="CW_HOST/" />
-    <meta property="og:image" content="CW_HOST/og.png" />
+    <meta property="og:url" content="%VITE_APP_URL%/" />
+    <meta property="og:image" content="%VITE_APP_URL%/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />

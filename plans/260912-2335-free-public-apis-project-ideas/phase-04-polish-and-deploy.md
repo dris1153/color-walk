@@ -287,10 +287,12 @@ does not control.
 Three items therefore remain, all of which need the deploy first:
 
 1. Run `npx wrangler login`, then `npm run deploy`, and record the URL.
-2. Replace the two `CW_HOST` placeholders in `index.html` with the deployed
-   origin - the `TODO(absolute-og)` comment marks them - then redeploy and check
-   the card in a sharing debugger. Relative OG URLs are ignored by most
-   scrapers.
+2. Set `VITE_APP_URL` in the Vercel project to the deployed origin, with no
+   trailing slash, then redeploy and check the card in a sharing debugger.
+   Superseded 2026-09-14: the `CW_HOST` placeholders became `%VITE_APP_URL%`,
+   resolved at build time, and `npm run build` now fails rather than shipping an
+   unresolved placeholder or a localhost URL. Relative OG URLs are ignored by
+   most scrapers, which is why this is baked in at build time at all.
 3. Re-run the browser image smoke against the deployed origin: one Met and one
    Cleveland thumbnail, both 200, neither carrying `Cf-Mitigated`. It passes
    locally; running it against the real origin is the pre-deploy ritual that
@@ -316,9 +318,9 @@ was never deployed. `vercel.json` declares both paths, and a local server that
 applies the real config now confirms `/` carries `Cache-Control: no-cache`.
 
 The three items still blocked on a live URL are unchanged, only the mechanism
-differs: push to GitHub and connect the repo on Vercel, then replace the
-`CW_HOST` placeholders in `index.html`, and re-run the image smoke and
-Lighthouse against the deployed origin.
+differs: push to GitHub and connect the repo on Vercel, set `VITE_APP_URL` in
+the project settings, and re-run the image smoke and Lighthouse against the
+deployed origin.
 
 Reasoning and the full verification list: [the Vercel migration brainstorm](../260914-0957-vercel-deploy-migration/reports/brainstorm-01-cloudflare-to-vercel.md).
 

@@ -34,10 +34,35 @@ command and no deploy credential on your machine, which is the point.
 Two settings matter on the Vercel side:
 
 - **Node version 22**, to match `.nvmrc`.
+- **`VITE_APP_URL`**, set to the production origin with **no trailing slash**,
+  for example `https://color-walk.vercel.app`.
 - **Analytics and Speed Insights stay off.** Both inject a third-party script.
   That breaks `script-src 'self'` and the standing rule that this site calls no
   third-party API at runtime - the rule that already cost it a colour-naming
   API.
+
+## Environment
+
+One variable, and it exists for one reason.
+
+| Variable | Purpose |
+|---|---|
+| `VITE_APP_URL` | The origin the site is served from, baked into the `og:url` and `og:image` tags at build time. Scrapers do not run JavaScript, so these cannot be set at runtime. No trailing slash. |
+
+`.env` holds the local default and is committed; there are no secrets in this
+project. Vercel's own environment variables take priority over it, so
+production is set in the project dashboard.
+
+Nothing else is configurable, deliberately. The image host allowlist is a
+security boundary and belongs in reviewed, tested code rather than a dashboard
+field. The tuned constants - the 4 MB full-resolution gate, the tone weight, the
+reveal sizes - are pinned by unit tests, and an environment override would mean
+the tests assert one value while production runs another.
+
+`npm run build` ends with `scripts/assert-html-env.mjs`, which fails the build
+if `VITE_APP_URL` never resolved, or if a build on Vercel still carries the
+local `localhost` default. Both cases would otherwise ship a broken share card
+that nobody notices.
 
 `vercel.json` carries the response headers. It is the only place they live:
 Vercel ignores Cloudflare's `_headers` format, so a stray copy of that file
