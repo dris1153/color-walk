@@ -141,9 +141,11 @@ export function App() {
         <ColourControls
           hue={hue}
           tone={tone}
+          topItem={items[0] ?? null}
           onHueChange={browseHue}
           onToneChange={browseTone}
           onGestureEnd={commitHash}
+          onSelect={open}
         />
       </div>
 

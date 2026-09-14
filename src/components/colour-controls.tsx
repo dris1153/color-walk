@@ -1,6 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { hslToHex } from '../lib/color-math';
 import { nearestColorName, toneName } from '../lib/color-name-table';
+import { isAllowedImageUrl } from '../lib/image-url';
+import type { Item } from '../lib/color-index-client';
 import type { ViewState } from '../lib/view-hash';
 import { HueWheel } from './hue-wheel';
 import { ToneSlider } from './tone-slider';
@@ -8,9 +10,11 @@ import { ToneSlider } from './tone-slider';
 type Props = {
   hue: number | null;
   tone: number | null;
+  topItem: Item | null;
   onHueChange: (hue: number | null) => void;
   onToneChange: (tone: number | null) => void;
   onGestureEnd: (next?: Partial<ViewState>) => void;
+  onSelect: (item: Item) => void;
 };
 
 const SWATCH_SATURATION = 70;
@@ -18,28 +22,60 @@ const DEFAULT_LIGHTNESS = 55;
 const NEUTRAL_SWATCH = '#6b7280';
 
 /**
- * Hue and tone read as one instrument: the ring picks the hue, the track picks
- * the lightness, and the disc in the middle shows the colour they add up to.
- * The panel behind them is not decoration - without it the controls sit
- * directly on the artwork and the labels are unreadable over a pale work.
+ * Hue and tone read as one instrument: the ring is the collection's own hue
+ * histogram, the track picks the lightness, and the disc in the middle resolves
+ * into the work those two actually rank first.
  */
 export function ColourControls({
   hue,
   tone,
+  topItem,
   onHueChange,
   onToneChange,
   onGestureEnd,
+  onSelect,
 }: Props) {
-  const swatch =
-    hue === null ? NEUTRAL_SWATCH
-    : hslToHex(hue, SWATCH_SATURATION, tone ?? DEFAULT_LIGHTNESS);
-  const nothingChosen = hue === null && tone === null;
+  // While a gesture is in progress the centre stays a flat colour. Swapping the
+  // artwork on every frame of a drag would both flicker and pull thumbnails at
+  // 60 Hz; resolving on release makes letting go the moment instead.
+  const [adjusting, setAdjusting] = useState(false);
+
+  const changeHue = useCallback(
+    (next: number | null) => {
+      setAdjusting(true);
+      onHueChange(next);
+    },
+    [onHueChange],
+  );
+
+  const changeTone = useCallback(
+    (next: number | null) => {
+      setAdjusting(true);
+      onToneChange(next);
+    },
+    [onToneChange],
+  );
+
+  const settle = useCallback(
+    (next?: Partial<ViewState>) => {
+      setAdjusting(false);
+      onGestureEnd(next);
+    },
+    [onGestureEnd],
+  );
 
   const clear = useCallback(() => {
+    setAdjusting(false);
     onHueChange(null);
     onToneChange(null);
     onGestureEnd({ hue: null, tone: null }); // same tick as the setters
   }, [onHueChange, onToneChange, onGestureEnd]);
+
+  const swatch =
+    hue === null ? NEUTRAL_SWATCH
+    : hslToHex(hue, SWATCH_SATURATION, tone ?? DEFAULT_LIGHTNESS);
+  const anythingChosen = hue !== null || tone !== null;
+  const preview = !adjusting && topItem && isAllowedImageUrl(topItem.thumb) ? topItem : null;
 
   const readout = [
     hue === null ? 'All colours' : nearestColorName(hue),
@@ -49,28 +85,46 @@ export function ColourControls({
   return (
     <div className="flex w-44 flex-col items-center gap-2 border border-ink/10 bg-ground/90 px-3 py-3 backdrop-blur lg:w-52">
       <div className="relative grid place-items-center">
-        <HueWheel hue={hue} onHueChange={onHueChange} onGestureEnd={onGestureEnd} />
+        <HueWheel hue={hue} onHueChange={changeHue} onGestureEnd={settle} />
         {/* A sibling of the ring, not a child: a button inside role="slider" is
             poor ARIA, and its pointer events would bubble into the ring's drag. */}
-        <button
-          type="button"
-          disabled={nothingChosen}
-          onClick={clear}
-          aria-label="Clear colour and tone"
-          style={{ backgroundColor: swatch }}
-          className="absolute h-14 w-14 rounded-full border border-ink/20 transition-colors duration-300 disabled:opacity-60 lg:h-20 lg:w-20"
-        />
+        {preview ? (
+          <button
+            type="button"
+            onClick={() => onSelect(preview)}
+            aria-label={`Open ${preview.t}`}
+            className="absolute h-14 w-14 overflow-hidden rounded-full border border-ink/20 lg:h-20 lg:w-20"
+          >
+            <img
+              src={preview.thumb}
+              alt=""
+              className="h-full w-full object-cover"
+              style={{ backgroundColor: preview.hex }}
+            />
+          </button>
+        ) : (
+          <div
+            aria-hidden
+            style={{ backgroundColor: swatch }}
+            className="pointer-events-none absolute h-14 w-14 rounded-full border border-ink/20 transition-colors duration-300 lg:h-20 lg:w-20"
+          />
+        )}
       </div>
 
-      <ToneSlider
-        hue={hue}
-        tone={tone}
-        onToneChange={onToneChange}
-        onGestureEnd={onGestureEnd}
-      />
+      <ToneSlider hue={hue} tone={tone} onToneChange={changeTone} onGestureEnd={settle} />
 
-      <p className="whitespace-nowrap text-center font-mono text-[10px] leading-none tracking-wide uppercase text-ink/70">
+      <p className="flex items-center gap-2 whitespace-nowrap text-center font-mono text-[10px] leading-none tracking-wide uppercase text-ink/70">
         {readout}
+        {anythingChosen && (
+          <button
+            type="button"
+            onClick={clear}
+            aria-label="Clear colour and tone"
+            className="text-ink/50 hover:text-ink"
+          >
+            &times;
+          </button>
+        )}
       </p>
     </div>
   );

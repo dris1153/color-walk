@@ -83,6 +83,54 @@ The 24 counts are imported from `meta.json` at build time: no runtime request, a
 | Three changes in one diff would be hard to bisect | Built and measured separately, in the order above |
 | Baked density drifts from a rebuilt index | Documented in the README beside the index-rebuild instructions |
 
+
+## Built and measured, 2026-09-14
+
+All three steps landed. Screenshots taken at 390x780 and 1440x900 in both the
+browsing and the chosen-colour state.
+
+| Check | Result |
+|---|---|
+| Ring segments drawn | **19 of 24** - the five empty buckets draw nothing, so the gap is visible |
+| Tone travel | 15 to 80; the swatch can no longer reach `#000000` or `#ffffff` |
+| Old `#l=` links | still resolve, clamped to the nearest tone that has works behind it |
+| Centre at rest | the top-ranked work, e.g. `Open A Rathor Noble Visiting a Holy Man at a Vishnu Shrine` |
+| Centre during a drag | falls back to the flat colour disc |
+| Centre after release | resolves to the new top match |
+| Clicking the centre | opens that exact work: clicked `Saint Catherine of Alexandria`, dialog title matched |
+| Clear | `#h=45&l=70` to `#h=all` |
+| Tab order from a fresh load | Hue, Open [work], Lightness, Clear, first card |
+| Page errors | none |
+
+Regression unchanged: 84 tests, zero CSP violations on gallery and overlay, CLS
+0 on load and scroll, tone overlap still 0 with zero requests, hash still
+written only on release with no history growth, the full overlay close matrix,
+focus return, and nothing left after 20 open/close cycles.
+
+## What the ring turned out to look like
+
+The banding risk did not need its fallback. Twenty-four arcs with a sliver of
+ground between them read as counted parts rather than a broken gradient: orange
+and amber swell, the greens and cyans taper, blue is a sliver, and the run from
+indigo to fuchsia is simply absent. It looks like a data visualisation, which
+was the intent.
+
+## Two test artifacts worth recording
+
+1. A phone screenshot came back as an empty panel. Re-running it twice with the
+   DOM inspected showed 19 paths, the right readout and the right swatch, with
+   no page errors. A capture-timing artifact, not a defect - worth checking
+   before believing a blank screenshot.
+2. The tab order appeared to skip the ring and the centre. It had been measured
+   after a sequence that left focus mid-panel; `document.body.focus()` does not
+   reset it, because the body is not focusable. From a fresh load the order is
+   correct, and all four controls report `tabIndex=0`.
+
+## Note carried forward
+
+`src/app.tsx` is now **198 of 200 lines**. The next change that touches it has
+to push composition into a component first, not after.
+
 ## Success criteria
 
 - Tone can no longer reach a value where the swatch is pure black or pure white, and existing `#l=` links still resolve.
