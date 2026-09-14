@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { hslToHex } from './hsl-to-hex.mjs';
 
 export const BUCKET_COUNT = 24;
 export const BUCKET_WIDTH = 360 / BUCKET_COUNT;
@@ -23,6 +24,13 @@ const byPctDesc = (a, b) => b.pct - a.pct;
 const bySatDesc = (a, b) => b.sat - a.sat || a.id.localeCompare(b.id);
 const byHueAsc = (a, b) => a.hue - b.hue || a.id.localeCompare(b.id);
 
+/**
+ * A work is filed under every colour it holds, not only its strongest, so a
+ * painting with a blue sky is findable from blue. The copy filed under blue
+ * *wears* blue: its hue, sat, lig, hex and pct are that colour's, and its own
+ * palette lists the work's other colours. Filing it under blue while still
+ * showing an ochre swatch would make the blue hue look broken.
+ */
 export function buildBuckets(items) {
   const buckets = Array.from({ length: BUCKET_COUNT }, (_, bucket) => ({
     bucket,
@@ -30,7 +38,22 @@ export function buildBuckets(items) {
     count: 0,
     items: [],
   }));
-  for (const item of items) buckets[hueToBucket(item.hue)].items.push(item);
+
+  for (const item of items) {
+    const colours = [[item.hue, item.sat, item.lig, item.pct], ...(item.p ?? [])];
+    const placed = new Set();
+    colours.forEach(([hue, sat, lig, share], i) => {
+      const b = hueToBucket(hue);
+      // Two of a work's colours can land in one 15-degree slice; it belongs there once.
+      if (placed.has(b)) return;
+      placed.add(b);
+      const rest = colours.filter((_, j) => j !== i).map(([h, s, l, sh]) => [h, s, l, sh]);
+      buckets[b].items.push(
+        i === 0 ? item : { ...item, hue, sat, lig, hex: hslToHex(hue, sat, lig), pct: share, p: rest },
+      );
+    });
+  }
+
   for (const b of buckets) {
     b.items.sort(byPctDesc);
     b.count = b.items.length;
@@ -88,7 +111,10 @@ export async function writeBucketFiles(items, outDir, dropped = {}) {
 
   const meta = {
     generatedAt: new Date().toISOString(),
+    // `total` counts works; `entries` counts their places on the wheel, which is
+    // larger because a work is filed under every colour it holds.
     total: items.length,
+    entries: buckets.reduce((n, b) => n + b.count, 0),
     bySource: {
       met: items.filter((i) => i.src === 'met').length,
       cma: items.filter((i) => i.src === 'cma').length,

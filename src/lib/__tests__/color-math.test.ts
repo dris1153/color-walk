@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   bucketCenter,
+  rankPages,
   circularHueDistance,
   hslToHex,
   hueToBucket,
@@ -153,5 +154,35 @@ describe('sortByColorDistance', () => {
     const before = items.map((i) => i.id);
     sortByColorDistance(items, 300, 20);
     expect(items.map((i) => i.id)).toEqual(before);
+  });
+});
+
+describe('rankPages', () => {
+  const at = (id: string, hue: number) => ({ id, hue, sat: 50, lig: 50 });
+
+  it('keeps pages in order, so a later page can only append', () => {
+    const out = rankPages([[at('a', 10), at('b', 20)], [at('c', 12)]], 10, null);
+    expect(out.map((i) => i.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('keeps one copy of a work filed under two colours', () => {
+    const out = rankPages([[at('a', 30), at('a', 210), at('b', 40)]], 30, null);
+    expect(out.map((i) => i.id)).toEqual(['a', 'b']);
+  });
+
+  it('keeps the copy whose colour is closest to what was asked for', () => {
+    const out = rankPages([[at('a', 210), at('a', 30)]], 30, null);
+    expect(out[0]!.hue).toBe(30);
+    expect(rankPages([[at('a', 210), at('a', 30)]], 210, null)[0]!.hue).toBe(210);
+  });
+
+  it('drops a duplicate that arrives on a later page, not the one on screen', () => {
+    const out = rankPages([[at('a', 30)], [at('a', 32), at('b', 35)]], 30, null);
+    expect(out.map((i) => `${i.id}:${i.hue}`)).toEqual(['a:30', 'b:35']);
+  });
+
+  it('leaves the all-colours view unsorted', () => {
+    const out = rankPages([[at('c', 300), at('a', 10)]], null, null);
+    expect(out.map((i) => i.id)).toEqual(['c', 'a']);
   });
 });

@@ -87,3 +87,29 @@ export function sortByColorDistance<T extends { hue: number; sat: number; lig: n
     (targetL === null ? 0 : Math.abs(it.lig - targetL) * TONE_WEIGHT);
   return [...items].sort((a, b) => score(a) - score(b));
 }
+
+/**
+ * Flattens the loaded pages into one ranked list. A work is filed under every
+ * colour it holds, so it can arrive from two buckets at once; each page is
+ * ranked before the sweep, so the copy kept is the one whose colour is closest
+ * to what the reader asked for. Pages keep their order, so a page arriving later
+ * can only append - nothing already on screen moves.
+ */
+export function rankPages<T extends { id: string; hue: number; sat: number; lig: number }>(
+  pages: readonly (readonly T[])[],
+  targetH: number | null,
+  targetL: number | null,
+): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const page of pages) {
+    const ranked =
+      targetH === null && targetL === null ? page : sortByColorDistance(page, targetH, targetL);
+    for (const item of ranked) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      out.push(item);
+    }
+  }
+  return out;
+}

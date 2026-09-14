@@ -93,3 +93,49 @@ describe('buildAll', () => {
     expect(buckets[1]!.items.map((i: { pct: number }) => i.pct)).toEqual([0.9, 0.1]);
   });
 });
+
+describe('a work filed under every colour it holds', () => {
+  const withPalette = (hue: number, pct: number, p: number[][]) => ({
+    id: `w-${hue}-${pct}`,
+    hue,
+    sat: 50,
+    lig: 50,
+    hex: '#000000',
+    pct,
+    p,
+  });
+
+  it('appears in the bucket of each of its colours', () => {
+    const buckets = buildBuckets([withPalette(30, 0.6, [[210, 60, 45, 0.28]])]);
+    expect(buckets[hueToBucket(30)]!.count).toBe(1);
+    expect(buckets[hueToBucket(210)]!.count).toBe(1);
+  });
+
+  it('wears the colour of the bucket it is filed under', () => {
+    const buckets = buildBuckets([withPalette(30, 0.6, [[210, 60, 45, 0.28]])]);
+    const copy = buckets[hueToBucket(210)]!.items[0]! as Record<string, unknown>;
+    expect(copy.hue).toBe(210);
+    expect(copy.lig).toBe(45);
+    expect(copy.pct).toBe(0.28);
+    // Derived, not the original's, or the blue hue would show an ochre swatch.
+    expect(copy.hex).not.toBe('#000000');
+  });
+
+  it('lists its other colours from where it now stands', () => {
+    const buckets = buildBuckets([withPalette(30, 0.6, [[210, 60, 45, 0.28]])]);
+    const copy = buckets[hueToBucket(210)]!.items[0]! as Record<string, unknown>;
+    expect(copy.p).toEqual([[30, 50, 50, 0.6]]);
+  });
+
+  it('is filed once when two of its colours share a slice', () => {
+    // 30 and 32 are the same 15-degree bucket.
+    const buckets = buildBuckets([withPalette(30, 0.6, [[32, 60, 45, 0.28]])]);
+    expect(buckets[hueToBucket(30)]!.count).toBe(1);
+    expect(buckets.reduce((n, b) => n + b.count, 0)).toBe(1);
+  });
+
+  it('leaves a work with no other colours exactly where it was', () => {
+    const buckets = buildBuckets([withPalette(30, 0.6, [])]);
+    expect(buckets.reduce((n, b) => n + b.count, 0)).toBe(1);
+  });
+});

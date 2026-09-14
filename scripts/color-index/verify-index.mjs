@@ -46,6 +46,7 @@ const fail = (msg) => {
 
 const meta = await read('meta.json');
 let counted = 0;
+const works = new Set();
 
 for (let b = 0; b < BUCKET_COUNT; b++) {
   const pad = String(b).padStart(2, '0');
@@ -61,6 +62,7 @@ for (let b = 0; b < BUCKET_COUNT; b++) {
     const file = page === 0 ? first : await read(`bucket-${pad}-${page}.json`);
     for (const item of file.items) {
       checkItem(item, b, fail);
+      works.add(item.id);
       if (item.pct > previousPct) fail(`bucket ${b}: items not sorted by pct across page ${page}`);
       previousPct = item.pct;
       seen++;
@@ -85,10 +87,15 @@ if (allBuckets.size < occupied) {
   fail(`all.json: covers ${allBuckets.size} of ${occupied} occupied buckets`);
 }
 
-if (counted !== meta.total) fail(`bucket counts sum to ${counted}, meta.total is ${meta.total}`);
+// Entries outnumber works: a work is filed under every colour it holds.
+if (counted !== meta.entries) fail(`buckets hold ${counted} entries, meta.entries is ${meta.entries}`);
+if (works.size !== meta.total) fail(`buckets hold ${works.size} works, meta.total is ${meta.total}`);
+if (counted < works.size) fail('entries cannot be fewer than works');
 if (meta.total < MIN_TOTAL) fail(`meta.total ${meta.total} is below the ${MIN_TOTAL} floor`);
 
-console.log(`checked ${counted} items across ${BUCKET_COUNT} buckets + all.json`);
+console.log(
+  `checked ${works.size} works in ${counted} places across ${BUCKET_COUNT} buckets + all.json`,
+);
 console.log(`bySource ${JSON.stringify(meta.bySource)}  dropped ${JSON.stringify(meta.dropped)}`);
 if (errors.length > 0) {
   console.error(`FAILED (${errors.length} shown):`);

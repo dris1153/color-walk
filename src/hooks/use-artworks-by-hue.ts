@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { hueToBucket, sortByColorDistance } from '../lib/color-math';
+import { hueToBucket, rankPages } from '../lib/color-math';
 import { hasMorePages, loadBucketNear, loadBucketPage, type Item } from '../lib/color-index-client';
 
 export type LoadStatus = 'loading' | 'ready' | 'error';
@@ -79,13 +79,7 @@ export function useArtworksByHue(
 
   // The sort key is the exact hue and tone, so it changes only when they do.
   // Tone costs no request: `lig` is already on every item the bucket returned.
-  const items = useMemo(
-    () =>
-      pages.flatMap((page) =>
-        hue === null && tone === null ? page : sortByColorDistance(page, hue, tone),
-      ),
-    [pages, hue, tone],
-  );
+  const items = useMemo(() => rankPages(pages, hue, tone), [pages, hue, tone]);
 
   // The single place a sort-key change resets the view: nothing already on
   // screen is ever silently reordered underneath the reader. Keyed on the sort
