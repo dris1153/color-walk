@@ -102,6 +102,60 @@ difference. Nothing to handle.
 | `pct` as a third slider | Three sliders is where an instrument becomes a control panel. `pct`'s honest job is already done: it orders each bucket file. |
 | A saturation axis | Measured p10 22 to p90 51, a 29-point band against tone's 19 to 70. Weaker than the axis that already exists. |
 
+## Built and measured, 2026-09-14
+
+`buildAll` run against the shipped 6,049-work index:
+
+| | before | after |
+|---|---|---|
+| Buckets represented | 2 | **19 of 19 occupied** |
+| `sat` p50 | 38 | **57** |
+| Distinct hex | 278 | 300 |
+| Hue-ordered | - | yes |
+
+The 300 now walk: `#781616` crimson at the start, `#67743e` olive in the middle,
+`#e0555a` back to red at the end.
+
+Composition went down twice before anything was added, as the standing note
+required: `use-reveal-on-scroll.ts` and `use-detail-overlay.ts` came out of
+`app.tsx`, which went 198 -> 175 -> 185 with the new work in it.
+
+### Two defects found by the browser checks
+
+1. **The jump did nothing.** `browseColour` closed the overlay and then wrote the
+   hash, but closing is a `history.back()` that lands *after* the current tick
+   and restores the URL the write had just changed. Fixed by holding the work in
+   `pendingColour` and applying it only once `selected` is null - that is, once
+   the back navigation has actually landed.
+2. **Back walked off the site.** `commitHash` uses `replaceState`, so the jump
+   overwrote the entry the reader arrived from and Back left the document. A
+   colour jump is a discrete navigation, not a drag, so it earns `pushHash` and
+   its own entry. Back now returns to the previous colour.
+
+### An instrument that lied
+
+The first CLS reading on a hue view was 0.0303, and HEAD measured the same, so it
+looked pre-existing. It was neither: the harness aborts requests to the museum
+CDNs, so every `<img>` collapsed and faked a shift. Measured again with images
+allowed, both builds report **CLS 0** on `#h=all`, `#h=30`, `#h=200` and
+`#h=204&l=35`.
+
+### Regression
+
+| Check | Result |
+|---|---|
+| Tests | 100 (up from 100 - six `buildAll` tests replaced three) |
+| Overlay close matrix | Escape, thrice, Close, backdrop, Back/Forward, hue-change-then-Back: all closed, all still on site |
+| Focus | trap holds, the new button is a stop, focus returns, scroll lock restores 900px |
+| Viewer teardown | 0 canvases and 0 OSD containers after 20 cycles |
+| CSP | 0 violations on gallery and with an overlay, on this build and HEAD |
+| Shared link | `#h=204&l=35` reproduces the same top work on a cold load |
+| Largest file | `app.tsx` 185 |
+
+**Not done:** `public/index` was not rewritten. The owner's crawl was mid-run and
+owns that directory, so `buildAll` was verified against the shipped index
+offline instead. The new landing view appears on the next `npm run build:index`.
+
 ## Success criteria
 
 - `#h=all` shows every occupied bucket, `sat` p50 >= 55, and no work is there for
