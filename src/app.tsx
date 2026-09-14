@@ -2,8 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useViewFromUrlHash } from './hooks/use-view-from-url-hash';
 import { useColumnCount } from './hooks/use-column-count';
 import { useArtworksByHue } from './hooks/use-artworks-by-hue';
-import { HueWheel } from './components/hue-wheel';
-import { ToneSlider } from './components/tone-slider';
+import { ColourControls } from './components/colour-controls';
 import { ArtworkMasonryGrid } from './components/artwork-masonry-grid';
 import {
   GalleryLoading,
@@ -138,12 +137,17 @@ export function App() {
           </button>
         </div>
       )}
-      <div className="fixed bottom-3 left-1/2 z-30 flex -translate-x-1/2 flex-col items-center gap-2 lg:bottom-auto lg:left-8 lg:top-1/2 lg:translate-x-0 lg:-translate-y-1/2">
-        <HueWheel hue={hue} onHueChange={browseHue} onGestureEnd={commitHash} />
-        <ToneSlider tone={tone} onToneChange={browseTone} onGestureEnd={commitHash} />
+      <div className="fixed bottom-3 left-1/2 z-30 -translate-x-1/2 lg:bottom-auto lg:left-8 lg:top-1/2 lg:translate-x-0 lg:-translate-y-1/2">
+        <ColourControls
+          hue={hue}
+          tone={tone}
+          onHueChange={browseHue}
+          onToneChange={browseTone}
+          onGestureEnd={commitHash}
+        />
       </div>
 
-      <main className="relative z-10 px-1.5 pb-64 pt-6 lg:pb-12 lg:pl-[320px]">
+      <main className="relative z-10 px-1.5 pb-56 pt-6 lg:pb-12 lg:pl-[320px]">
         <h1 className="sr-only">Color Walk</h1>
         <SavedToggle
           count={favourites.length}

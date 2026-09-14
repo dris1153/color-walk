@@ -66,6 +66,46 @@ html {
 }
 
 /* Tailwind v4 Preflight no longer restores the native button cursor. */
+/* The tone slider is a native range, restyled rather than replaced so keyboard
+   and screen-reader support stay free. The track gradient arrives as
+   --tone-track, set from React through CSSOM, so there is no inline <style>
+   element and the Content-Security-Policy needs no exception. */
+.tone-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  background: transparent;
+}
+
+.tone-range::-webkit-slider-runnable-track {
+  height: 10px;
+  background: var(--tone-track);
+  border: 1px solid rgb(242 239 233 / 0.18);
+}
+.tone-range::-moz-range-track {
+  height: 10px;
+  background: var(--tone-track);
+  border: 1px solid rgb(242 239 233 / 0.18);
+}
+
+.tone-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 18px;
+  margin-top: -5px;
+  background: var(--color-ink);
+  border: 2px solid var(--color-ground);
+}
+.tone-range::-moz-range-thumb {
+  width: 10px;
+  height: 18px;
+  border-radius: 0;
+  background: var(--color-ink);
+  border: 2px solid var(--color-ground);
+}
+
 @layer base {
   button:not(:disabled),
   [role="button"]:not(:disabled) {

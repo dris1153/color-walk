@@ -55,52 +55,33 @@ export function HueWheel({ hue, onHueChange, onGestureEnd }: Props) {
     event.preventDefault();
   };
 
-  const size = 'h-40 w-40 lg:h-[220px] lg:w-[220px]';
   const label = hue === null ? 'All colours' : `Hue ${hue}, ${nearestColorName(hue)}`;
 
   return (
-    <div className="flex flex-col items-center gap-3">
-      <div
-        ref={ringRef}
-        role="slider"
-        tabIndex={0}
-        aria-label="Hue"
-        aria-valuemin={0}
-        aria-valuemax={359}
-        aria-valuenow={hue ?? 0}
-        aria-valuetext={label}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-        onKeyDown={handleKeyDown}
-        onKeyUp={() => onGestureEnd()}
-        className={`hue-ring relative rounded-full ${size}`}
-      >
-        {hue !== null && (
-          <span
-            aria-hidden
-            style={hueToHandlePosition(hue)}
-            className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-ground bg-ink shadow"
-          />
-        )}
-        <div className="absolute inset-0 grid place-items-center">
-          <button
-            type="button"
-            aria-pressed={hue === null}
-            onClick={() => {
-              onHueChange(null);
-              onGestureEnd({ hue: null }); // same tick as setHue, so be explicit
-            }}
-            className="rounded-full px-3 py-2 font-mono text-[10px] tracking-widest uppercase text-ink/70 hover:text-ink"
-          >
-            All
-          </button>
-        </div>
-      </div>
-      <p className="font-mono text-[11px] tracking-widest uppercase text-ink/70">
-        {hue === null ? 'All colours' : `H ${hue} / ${nearestColorName(hue)}`}
-      </p>
+    <div
+      ref={ringRef}
+      role="slider"
+      tabIndex={0}
+      aria-label="Hue"
+      aria-valuemin={0}
+      aria-valuemax={359}
+      aria-valuenow={hue ?? 0}
+      aria-valuetext={label}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onKeyDown={handleKeyDown}
+      onKeyUp={() => onGestureEnd()}
+      className="hue-ring relative h-32 w-32 rounded-full lg:h-44 lg:w-44"
+    >
+      {hue !== null && (
+        <span
+          aria-hidden
+          style={hueToHandlePosition(hue)}
+          className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-ground bg-ink shadow"
+        />
+      )}
     </div>
   );
 }
