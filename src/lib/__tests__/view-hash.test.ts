@@ -73,3 +73,28 @@ describe('formatViewHash', () => {
     }
   });
 });
+
+describe('the monochrome view', () => {
+  it('reads and writes #h=grey', () => {
+    expect(parseViewHash('#h=grey')).toEqual({ hue: 'grey', tone: null });
+    expect(formatViewHash({ hue: 'grey', tone: null })).toBe('#h=grey');
+  });
+
+  it('carries a tone, which is the only axis it has', () => {
+    expect(parseViewHash('#h=grey&l=30')).toEqual({ hue: 'grey', tone: 30 });
+    expect(formatViewHash({ hue: 'grey', tone: 30 })).toBe('#h=grey&l=30');
+  });
+
+  it('round-trips', () => {
+    for (const view of [
+      { hue: 'grey' as const, tone: null },
+      { hue: 'grey' as const, tone: 45 },
+    ]) {
+      expect(parseViewHash(formatViewHash(view))).toEqual(view);
+    }
+  });
+
+  it('is not confused with a hue named in words', () => {
+    expect(parseViewHash('#h=greyish').hue).toBeNull();
+  });
+});

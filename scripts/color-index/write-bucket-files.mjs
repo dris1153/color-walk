@@ -88,8 +88,35 @@ const bucketFileName = (b, page = 0) =>
 
 export const pageCount = (total) => Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+const byLigAsc = (a, b) => a.lig - b.lig || a.id.localeCompare(b.id);
+
+/**
+ * The monochrome works: ink, calligraphy, prints, plain ceramics. They have no
+ * hue to file under, only a tone, so they live in their own paged file.
+ *
+ * Pages are dealt round-robin from a tone-sorted list rather than sliced from
+ * it. Slicing would put every dark work on page 0, which is the same mistake
+ * the landing view used to make - the first screenful would have been one end
+ * of the tonal range instead of a cross-section of it.
+ */
+export async function writeNeutralFiles(items, outDir) {
+  const sorted = [...items].sort(byLigAsc);
+  const pages = pageCount(sorted.length);
+  const dealt = Array.from({ length: pages }, () => []);
+  sorted.forEach((item, i) => dealt[i % pages].push(item));
+
+  for (let page = 0; page < pages; page++) {
+    const body =
+      page === 0
+        ? { count: sorted.length, pages, items: dealt[0] }
+        : { page, items: dealt[page] };
+    await writeFile(path.join(outDir, page === 0 ? 'neutral.json' : `neutral-${page}.json`), JSON.stringify(body));
+  }
+  return sorted.length;
+}
+
 /** Minified on purpose: pretty-printing this index costs ~30% more bytes in git and over the wire. */
-export async function writeBucketFiles(items, outDir, dropped = {}) {
+export async function writeBucketFiles(items, outDir, dropped = {}, neutrals = []) {
   await mkdir(outDir, { recursive: true });
   const buckets = buildBuckets(items);
   const all = buildAll(buckets);
@@ -108,6 +135,9 @@ export async function writeBucketFiles(items, outDir, dropped = {}) {
     }
   }
   await writeFile(path.join(outDir, 'all.json'), JSON.stringify(all));
+  // Deliberately not in all.json: the landing view is a walk through colour,
+  // and greys would only dilute it.
+  const neutral = await writeNeutralFiles(neutrals, outDir);
 
   const meta = {
     generatedAt: new Date().toISOString(),
@@ -115,6 +145,7 @@ export async function writeBucketFiles(items, outDir, dropped = {}) {
     // larger because a work is filed under every colour it holds.
     total: items.length,
     entries: buckets.reduce((n, b) => n + b.count, 0),
+    neutral,
     bySource: {
       met: items.filter((i) => i.src === 'met').length,
       cma: items.filter((i) => i.src === 'cma').length,

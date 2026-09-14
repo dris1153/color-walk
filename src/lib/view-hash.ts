@@ -1,7 +1,7 @@
-import { clampTone } from './color-math';
+import { clampTone, type HueSelection } from './color-math';
 
 export type ViewState = {
-  hue: number | null;
+  hue: HueSelection;
   tone: number | null;
 };
 
@@ -20,13 +20,16 @@ const parseTone = (value: string | null): number | null => {
 
 /**
  * Kept pure and separate from the hook so it can be tested without a DOM.
- * `#h=212`, `#h=all`, `#h=212&l=30` and `#l=30` are all reachable URLs.
+ * `#h=212`, `#h=all`, `#h=grey`, `#h=212&l=30` and `#l=30` are all reachable.
  */
 export function parseViewHash(hash: string): ViewState {
   const params = new URLSearchParams(hash.replace(/^#/, ''));
   const rawHue = params.get('h');
   return {
-    hue: rawHue === null || rawHue === 'all' ? null : clampHue(rawHue),
+    hue:
+      rawHue === null || rawHue === 'all' ? null
+      : rawHue === 'grey' ? 'grey'
+      : clampHue(rawHue),
     // Clamped to the same range the slider offers, so an old link cannot leave
     // the readout showing one value while the sort uses another.
     tone: parseTone(params.get('l')),

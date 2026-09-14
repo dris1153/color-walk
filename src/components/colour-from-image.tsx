@@ -1,8 +1,9 @@
 import { useCallback, useRef, useState } from 'react';
 import { SAMPLE_EDGE, dominantColorFromPixels } from '../lib/image-colour';
+import type { HueSelection } from '../lib/color-math';
 
 type Props = {
-  onColour: (hue: number, lightness: number) => void;
+  onColour: (hue: HueSelection, lightness: number) => void;
 };
 
 /**
@@ -40,10 +41,12 @@ export function ColourFromImage({ onColour }: Props) {
         const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const colour = dominantColorFromPixels(data);
         if (!colour) {
-          setError('No colour in that picture');
+          setError('Could not read that picture');
           return;
         }
-        onColour(colour.hue, colour.lig);
+        // A grey picture is not a dead end any more: it lands on the monochrome
+        // works, at its own tone.
+        onColour(colour.neutral ? 'grey' : colour.hue, colour.lig);
       } catch {
         setError('Could not read that picture');
       }

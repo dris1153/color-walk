@@ -1,3 +1,9 @@
+/**
+ * What the reader has asked the wheel for: a hue, nothing (all colours), or the
+ * monochrome works, which have a tone but no hue to file them under.
+ */
+export type HueSelection = number | null | 'grey';
+
 export const BUCKET_COUNT = 24;
 export const BUCKET_WIDTH = 360 / BUCKET_COUNT;
 

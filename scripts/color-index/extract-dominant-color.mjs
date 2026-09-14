@@ -44,10 +44,12 @@ function accumulate(data, channels) {
   const lig = new Float64Array(BUCKETS);
   let counted = 0;
   let total = 0;
+  let ligAll = 0;
 
   for (let i = 0; i + channels <= data.length; i += channels) {
     total++;
     const [h, s, l] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
+    ligAll += l; // every pixel, so an achromatic work still has a tone to stand on
     if (l < MIN_LIGHTNESS || l > MAX_LIGHTNESS || s < MIN_SATURATION) continue;
     const w = s / 100; // saturated pixels carry more of the work's colour identity
     const b = Math.round(h / BUCKET_WIDTH) % BUCKETS;
@@ -58,7 +60,7 @@ function accumulate(data, channels) {
     lig[b] += w * l;
     counted += w;
   }
-  return { weight, cos, sin, sat, lig, counted, total };
+  return { weight, cos, sin, sat, lig, counted, total, ligAll };
 }
 
 /** Circular mean, so a bucket straddling 0 does not average to 180. */
@@ -72,17 +74,26 @@ const bucketHue = (acc, b) => wrap360(Math.atan2(acc.sin[b], acc.cos[b]) / DEG);
 export function dominantColorFromRaw(data, channels) {
   const acc = accumulate(data, channels);
   if (acc.total === 0) return null;
-  if (acc.counted / acc.total < MIN_CHROMATIC_SHARE) return null;
+
+  // Ink, calligraphy, prints and monochrome ceramics: 36% of the Met's works
+  // measured 2026-09-14, at saturation p50 0. They have no hue to file under,
+  // only a tone, so they are reported as neutral rather than thrown away.
+  const neutral = () => {
+    const lig = Math.round(acc.ligAll / acc.total);
+    return { neutral: true, hue: 0, sat: 0, lig, hex: hslToHex(0, 0, lig), pct: 1, p: [] };
+  };
+  if (acc.counted / acc.total < MIN_CHROMATIC_SHARE) return neutral();
 
   let win = 0;
   for (let b = 1; b < BUCKETS; b++) if (acc.weight[b] > acc.weight[win]) win = b;
-  if (acc.weight[win] <= 0) return null;
+  if (acc.weight[win] <= 0) return neutral();
 
   const hue = bucketHue(acc, win);
   const s = acc.sat[win] / acc.weight[win];
   const l = acc.lig[win] / acc.weight[win];
 
   return {
+    neutral: false,
     hue: Math.round(hue) % 360,
     sat: Math.round(s),
     lig: Math.round(l),
@@ -110,7 +121,8 @@ function runnersUp(acc, win) {
   return out.sort((a, b) => b[3] - a[3]).slice(0, MAX_PALETTE);
 }
 
-/** Returns { w, h, hue, sat, lig, hex, pct, p } or null for achromatic works. */
+/** Returns { w, h, neutral, hue, sat, lig, hex, pct, p }, or null only when the
+ *  image holds no pixels at all. `neutral` works carry a tone and no hue. */
 export async function extractDominantColor(buf) {
   const meta = await sharp(buf).metadata();
   const { data, info } = await sharp(buf)

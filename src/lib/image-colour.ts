@@ -32,11 +32,15 @@ function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
   return [normalizeHue(h * 60), s * 100, l * 100];
 }
 
-/** RGBA from a canvas. Null when the picture holds no colour worth walking to. */
+/**
+ * RGBA from a canvas. A picture with no colour in it is not a failure: it has a
+ * tone, and the monochrome works are a place to walk to. Null only when there
+ * are no pixels at all.
+ */
 export function dominantColorFromPixels(
   data: Uint8ClampedArray,
   channels = 4,
-): { hue: number; sat: number; lig: number } | null {
+): { neutral: boolean; hue: number; sat: number; lig: number } | null {
   const weight = new Float64Array(BUCKET_COUNT);
   const cos = new Float64Array(BUCKET_COUNT);
   const sin = new Float64Array(BUCKET_COUNT);
@@ -44,10 +48,12 @@ export function dominantColorFromPixels(
   const lig = new Float64Array(BUCKET_COUNT);
   let counted = 0;
   let total = 0;
+  let ligAll = 0;
 
   for (let i = 0; i + channels <= data.length; i += channels) {
     total++;
     const [h, s, l] = rgbToHsl(data[i]!, data[i + 1]!, data[i + 2]!);
+    ligAll += l; // every pixel, so a grey picture still has a tone to stand on
     if (l < MIN_LIGHTNESS || l > MAX_LIGHTNESS || s < MIN_SATURATION) continue;
     const w = s / 100; // saturated pixels carry more of the picture's identity
     // Bounded by the modulo, so every read below is in range.
@@ -60,13 +66,17 @@ export function dominantColorFromPixels(
     counted += w;
   }
 
-  if (total === 0 || counted / total < MIN_CHROMATIC_SHARE) return null;
+  if (total === 0) return null;
+  const neutral = () => ({ neutral: true, hue: 0, sat: 0, lig: Math.round(ligAll / total) });
+  if (counted / total < MIN_CHROMATIC_SHARE) return neutral();
+
   let win = 0;
   for (let b = 1; b < BUCKET_COUNT; b++) if (weight[b]! > weight[win]!) win = b;
-  if (weight[win]! <= 0) return null;
+  if (weight[win]! <= 0) return neutral();
 
   // Circular mean, so a bucket straddling 0 does not average to 180.
   return {
+    neutral: false,
     hue: Math.round(normalizeHue(Math.atan2(sin[win]!, cos[win]!) / DEG)) % 360,
     sat: Math.round(sat[win]! / weight[win]!),
     lig: Math.round(lig[win]! / weight[win]!),

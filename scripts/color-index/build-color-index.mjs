@@ -73,7 +73,6 @@ async function normalizeAll({ source, limit }) {
 async function colorizeAll(items) {
   const width = Math.max(2, os.availableParallelism?.() ?? 4);
   let done = 0;
-  let achromatic = 0;
   let decodeFailed = 0;
 
   const colored = await pool(items, width, async (item) => {
@@ -81,7 +80,6 @@ async function colorizeAll(items) {
     try {
       const color = await extractDominantColor(await readCachedThumb(item.id));
       if (color) result = { ...item, ...color };
-      else achromatic++;
     } catch {
       decodeFailed++;
     }
@@ -89,7 +87,12 @@ async function colorizeAll(items) {
     return result;
   });
 
-  return { items: colored.filter(Boolean), achromatic, decodeFailed };
+  const all = colored.filter(Boolean);
+  return {
+    items: all.filter((i) => !i.neutral),
+    neutrals: all.filter((i) => i.neutral),
+    decodeFailed,
+  };
 }
 
 async function main() {
@@ -123,15 +126,20 @@ async function main() {
     log(`thumbnails ready for ${downloaded.items.length}`);
 
     const colored = await colorizeAll(downloaded.items);
-    log(`coloured ${colored.items.length}, ${colored.achromatic} achromatic, ${colored.decodeFailed} undecodable`);
+    log(`coloured ${colored.items.length}, ${colored.neutrals.length} monochrome, ${colored.decodeFailed} undecodable`);
 
     // Written on every run, complete or not, so the site always reflects the
     // crawl so far instead of needing all 24 hours before it is usable.
-    const meta = await writeBucketFiles(colored.items, OUT_DIR, {
-      validation: normalized.dropped,
-      achromatic: colored.achromatic,
-      download: downloaded.failed + colored.decodeFailed,
-    });
+    const meta = await writeBucketFiles(
+      colored.items,
+      OUT_DIR,
+      {
+        validation: normalized.dropped,
+        achromatic: 0, // no longer thrown away: they are the monochrome index
+        download: downloaded.failed + colored.decodeFailed,
+      },
+      colored.neutrals,
+    );
 
     log(`wrote ${OUT_DIR}`);
     await control.finish({

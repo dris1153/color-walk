@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { hslToHex } from '../lib/color-math';
+import { hslToHex, type HueSelection } from '../lib/color-math';
 import { nearestColorName, toneName } from '../lib/color-name-table';
 import { isAllowedImageUrl } from '../lib/image-url';
 import type { Item } from '../lib/color-index-client';
@@ -9,14 +9,14 @@ import { ToneSlider } from './tone-slider';
 import { ColourFromImage } from './colour-from-image';
 
 type Props = {
-  hue: number | null;
+  hue: HueSelection;
   tone: number | null;
   topItem: Item | null;
-  onHueChange: (hue: number | null) => void;
+  onHueChange: (hue: HueSelection) => void;
   onToneChange: (tone: number | null) => void;
   onGestureEnd: (next?: Partial<ViewState>) => void;
   onSelect: (item: Item) => void;
-  onColourFromImage: (hue: number, lightness: number) => void;
+  onColourFromImage: (hue: HueSelection, lightness: number) => void;
 };
 
 const SWATCH_SATURATION = 70;
@@ -67,6 +67,15 @@ export function ColourControls({
     [onGestureEnd],
   );
 
+  // Ink, calligraphy and prints have a tone but no hue, so they sit outside the
+  // ring rather than anywhere on it. Clicking again returns to all colours.
+  const toggleGrey = useCallback(() => {
+    const next = hue === 'grey' ? null : 'grey';
+    setAdjusting(false);
+    onHueChange(next);
+    onGestureEnd({ hue: next }); // same tick as the setter
+  }, [hue, onHueChange, onGestureEnd]);
+
   const clear = useCallback(() => {
     setAdjusting(false);
     onHueChange(null);
@@ -74,14 +83,19 @@ export function ColourControls({
     onGestureEnd({ hue: null, tone: null }); // same tick as the setters
   }, [onHueChange, onToneChange, onGestureEnd]);
 
+  // The wheel and the track only understand a real hue; monochrome has none.
+  const wheelHue = typeof hue === 'number' ? hue : null;
   const swatch =
-    hue === null ? NEUTRAL_SWATCH
+    hue === 'grey' ? hslToHex(0, 0, tone ?? DEFAULT_LIGHTNESS)
+    : hue === null ? NEUTRAL_SWATCH
     : hslToHex(hue, SWATCH_SATURATION, tone ?? DEFAULT_LIGHTNESS);
   const anythingChosen = hue !== null || tone !== null;
   const preview = !adjusting && topItem && isAllowedImageUrl(topItem.thumb) ? topItem : null;
 
   const readout = [
-    hue === null ? 'All colours' : nearestColorName(hue),
+    hue === 'grey' ? 'Monochrome'
+    : hue === null ? 'All colours'
+    : nearestColorName(hue),
     tone === null ? 'Any tone' : toneName(tone),
   ].join(' \u00b7 ');
 
@@ -114,9 +128,18 @@ export function ColourControls({
         )}
       </div>
 
-      <ToneSlider hue={hue} tone={tone} onToneChange={changeTone} onGestureEnd={settle} />
+      <ToneSlider hue={wheelHue} tone={tone} onToneChange={changeTone} onGestureEnd={settle} />
 
       <p className="flex items-center gap-2 whitespace-nowrap text-center font-mono text-[10px] leading-none tracking-wide uppercase text-ink/70">
+        <button
+          type="button"
+          onClick={toggleGrey}
+          aria-pressed={hue === 'grey'}
+          aria-label="Monochrome works"
+          title="Monochrome works"
+          style={{ background: 'linear-gradient(135deg, #1c1c1c 50%, #e8e8e8 50%)' }}
+          className="h-3.5 w-3.5 shrink-0 rounded-full border border-ink/25 hover:border-ink/60 aria-pressed:border-ink"
+        />
         {readout}
         {anythingChosen && (
           <button

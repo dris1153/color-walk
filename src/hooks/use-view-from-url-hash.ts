@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatViewHash, parseViewHash, type ViewState } from '../lib/view-hash';
+import type { HueSelection } from '../lib/color-math';
 
 /** Safari throttles history writes to ~100 per 30 s, so never write per pointermove. */
 const COMMIT_THROTTLE_MS = 300;
 
 export function useViewFromUrlHash(): {
-  hue: number | null;
+  hue: HueSelection;
   tone: number | null;
-  setHue: (h: number | null) => void;
+  setHue: (h: HueSelection) => void;
   setTone: (l: number | null) => void;
   /**
    * Pass the changed part when committing in the same tick as a setter; React
@@ -28,7 +29,7 @@ export function useViewFromUrlHash(): {
   const lastCommit = useRef(0);
   const timer = useRef<number | undefined>(undefined);
 
-  const setHue = useCallback((hue: number | null) => setView((v) => ({ ...v, hue })), []);
+  const setHue = useCallback((hue: HueSelection) => setView((v) => ({ ...v, hue })), []);
   const setTone = useCallback((tone: number | null) => setView((v) => ({ ...v, tone })), []);
 
   const write = useCallback(() => {

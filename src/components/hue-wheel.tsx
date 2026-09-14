@@ -1,12 +1,12 @@
 import { useRef, type KeyboardEvent, type PointerEvent } from 'react';
-import { hslToHex, normalizeHue } from '../lib/color-math';
+import { hslToHex, normalizeHue, type HueSelection } from '../lib/color-math';
 import { HUE_SEGMENT_WEIGHTS } from '../lib/hue-density';
 import { nearestColorName } from '../lib/color-name-table';
 import { hueToHandlePosition, pointToHue, ringSegments } from '../lib/hue-wheel-geometry';
 import type { ViewState } from '../lib/view-hash';
 
 type Props = {
-  hue: number | null;
+  hue: HueSelection;
   onHueChange: (hue: number | null) => void;
   onGestureEnd: (next?: Partial<ViewState>) => void;
 };
@@ -49,7 +49,7 @@ export function HueWheel({ hue, onHueChange, onGestureEnd }: Props) {
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const current = hue ?? 0;
+    const current = typeof hue === 'number' ? hue : 0;
     const delta =
       event.key === 'ArrowRight' || event.key === 'ArrowUp' ? STEP
       : event.key === 'ArrowLeft' || event.key === 'ArrowDown' ? -STEP
@@ -63,7 +63,12 @@ export function HueWheel({ hue, onHueChange, onGestureEnd }: Props) {
     event.preventDefault();
   };
 
-  const label = hue === null ? 'All colours' : `Hue ${hue}, ${nearestColorName(hue)}`;
+  // 'grey' has no place on the ring, and saying "All colours" there would tell a
+  // screen reader the opposite of what the grid is showing.
+  const label =
+    hue === 'grey' ? 'Monochrome, no hue'
+    : hue === null ? 'All colours'
+    : `Hue ${hue}, ${nearestColorName(hue)}`;
 
   return (
     <div
@@ -73,7 +78,7 @@ export function HueWheel({ hue, onHueChange, onGestureEnd }: Props) {
       aria-label="Hue"
       aria-valuemin={0}
       aria-valuemax={359}
-      aria-valuenow={hue ?? 0}
+      aria-valuenow={typeof hue === 'number' ? hue : 0}
       aria-valuetext={label}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -101,7 +106,7 @@ export function HueWheel({ hue, onHueChange, onGestureEnd }: Props) {
           />
         ))}
       </svg>
-      {hue !== null && (
+      {typeof hue === 'number' && (
         <span
           aria-hidden
           style={hueToHandlePosition(hue)}

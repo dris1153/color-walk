@@ -6,7 +6,7 @@ type Props = {
   status: LoadStatus;
   total: number;
   revealed: number;
-  hue: number | null;
+  hue: number | null | 'grey';
   onHueChange: (hue: number) => void;
   retryDisabled: boolean;
   onRetry: () => void;
@@ -42,7 +42,8 @@ export function GalleryStatus({
   if (total === 0) {
     // Reachable only if every bucket file is empty: since phase 2 the loader
     // pads a thin hue from its neighbours, so a real hue always has works.
-    const nearby = hue === null ? [] : [-NEIGHBOUR_STEP, NEIGHBOUR_STEP].map((d) => normalizeHue(hue + d));
+    const nearby =
+      typeof hue === 'number' ? [-NEIGHBOUR_STEP, NEIGHBOUR_STEP].map((d) => normalizeHue(hue + d)) : [];
     return (
       <div className={`${line} text-ink/50`}>
         <p>Nothing in this hue yet. Try nearby.</p>

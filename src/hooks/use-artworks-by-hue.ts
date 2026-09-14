@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { hueToBucket, rankPages } from '../lib/color-math';
+import { hueToBucket, rankPages, type HueSelection } from '../lib/color-math';
 import { hasMorePages, loadBucketNear, loadBucketPage, type Item } from '../lib/color-index-client';
 
 export type LoadStatus = 'loading' | 'ready' | 'error';
@@ -16,7 +16,7 @@ const BACKOFF_MS = [2000, 4000, 8000];
 const IMAGE_ERROR_LIMIT = 8;
 
 export function useArtworksByHue(
-  hue: number | null,
+  hue: HueSelection,
   tone: number | null,
   columns: number,
 ): {
@@ -30,7 +30,9 @@ export function useArtworksByHue(
   noteImageLoad: () => void;
   imagesDown: boolean;
 } {
-  const bucket = hue === null ? null : hueToBucket(hue);
+  const bucket = typeof hue === 'number' ? hueToBucket(hue) : hue;
+  // Monochrome works have no hue, so only the tone axis ranks them.
+  const targetHue = typeof hue === 'number' ? hue : null;
   const initialReveal = columns * INITIAL_ROWS;
   // One entry per loaded page. Pages are sorted independently and concatenated,
   // never merged, so an arriving page cannot reorder what is already on screen.
@@ -79,7 +81,7 @@ export function useArtworksByHue(
 
   // The sort key is the exact hue and tone, so it changes only when they do.
   // Tone costs no request: `lig` is already on every item the bucket returned.
-  const items = useMemo(() => rankPages(pages, hue, tone), [pages, hue, tone]);
+  const items = useMemo(() => rankPages(pages, targetHue, tone), [pages, targetHue, tone]);
 
   // The single place a sort-key change resets the view: nothing already on
   // screen is ever silently reordered underneath the reader. Keyed on the sort
@@ -89,7 +91,10 @@ export function useArtworksByHue(
     setRevealCount(initialReveal);
     setImageErrors(0);
     window.scrollTo(0, 0);
-  }, [hue, tone, initialReveal]);
+    // Both keys: `bucket` catches a move between all-colours, a hue and the
+    // monochrome works; `targetHue` catches a drag inside one bucket, which
+    // reorders the grid just as much.
+  }, [bucket, targetHue, tone, initialReveal]);
 
   const loadNextPage = useCallback(() => {
     if (bucket === null || fetchingPage.current) return;

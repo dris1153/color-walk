@@ -37,10 +37,28 @@ describe('extractDominantColor', () => {
     expect(color!.pct).toBeGreaterThan(0.97);
   });
 
-  it('returns null for an achromatic image', async () => {
-    expect(await extractDominantColor(await solid(480, 480, GREY))).toBeNull();
-    expect(await extractDominantColor(await solid(480, 480, WHITE))).toBeNull();
-    expect(await extractDominantColor(await solid(480, 480, { r: 4, g: 4, b: 4 }))).toBeNull();
+  it('reports an achromatic image as neutral, keeping the tone it has', async () => {
+    // These used to be thrown away. They are 36% of the Met's works, so they
+    // now come back with no hue and the one thing they do have: a lightness.
+    for (const [bg, tone] of [
+      [GREY, 50],
+      [WHITE, 100],
+      [{ r: 4, g: 4, b: 4 }, 2],
+    ] as const) {
+      const color = await extractDominantColor(await solid(480, 480, bg));
+      expect(color!.neutral).toBe(true);
+      expect(color!.sat).toBe(0);
+      expect(Math.abs(color!.lig - tone)).toBeLessThanOrEqual(2);
+      // A grey is a grey: all three channels equal.
+      const [r, g, b] = [1, 3, 5].map((i) => color!.hex.slice(i, i + 2));
+      expect(new Set([r, g, b]).size).toBe(1);
+    }
+  });
+
+  it('still calls a coloured work coloured', async () => {
+    const color = await extractDominantColor(await solid(480, 480, BLUE));
+    expect(color!.neutral).toBe(false);
+    expect(Math.abs(color!.hue - 210)).toBeLessThanOrEqual(4);
   });
 
   it('reports a full share for a single-hue image', async () => {
@@ -93,6 +111,6 @@ describe('the colours a work also holds', () => {
   });
 
   it('gives an achromatic work no palette at all, because it has no colour', async () => {
-    expect(await extractDominantColor(await solid(64, 64, GREY))).toBeNull();
+    expect((await extractDominantColor(await solid(64, 64, GREY)))!.p).toEqual([]);
   });
 });

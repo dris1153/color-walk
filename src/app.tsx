@@ -14,11 +14,9 @@ import { SavedToggle } from './components/saved-toggle';
 import { useFavourites } from './hooks/use-favourites';
 import { useRevealOnScroll } from './hooks/use-reveal-on-scroll';
 import { useDetailOverlay } from './hooks/use-detail-overlay';
-import { nearestColorName } from './lib/color-name-table';
-import { clampTone } from './lib/color-math';
+import { useDocumentChrome } from './hooks/use-document-chrome';
+import { clampTone, type HueSelection } from './lib/color-math';
 import { ArtworkDetailOverlay } from './components/artwork-detail-overlay';
-
-const NEUTRAL_ACCENT = '#6b7280';
 
 export function App() {
   const { hue, tone, setHue, setTone, commitHash, pushHash } = useViewFromUrlHash();
@@ -41,19 +39,10 @@ export function App() {
   const [needsReload, setNeedsReload] = useState(false);
   const [pendingColour, setPendingColour] = useState<{ hue: number; lig: number } | null>(null);
 
-  useEffect(() => {
-    document.documentElement.style.setProperty(
-      '--accent',
-      hue === null ? NEUTRAL_ACCENT : `hsl(${hue} 70% 55%)`,
-    );
-  }, [hue]);
-
-  useEffect(() => {
-    document.title = hue === null ? 'Color Walk' : `Color Walk - H ${hue} / ${nearestColorName(hue)}`;
-  }, [hue]);
+  useDocumentChrome(hue);
 
   const browseHue = useCallback(
-    (next: number | null) => {
+    (next: HueSelection) => {
       setShowingSaved(false);
       setHue(next);
     },
@@ -88,7 +77,7 @@ export function App() {
   );
 
   const jumpToColour = useCallback(
-    (nextHue: number, lightness: number) => {
+    (nextHue: HueSelection, lightness: number) => {
       const tone = clampTone(lightness);
       setShowingSaved(false);
       setHue(nextHue);

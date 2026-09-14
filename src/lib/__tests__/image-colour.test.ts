@@ -33,21 +33,40 @@ describe('the browser extractor agrees with the build extractor', () => {
     it(name, () => {
       const mine = dominantColorFromPixels(pixels, 3);
       const build = dominantColorFromRaw(pixels, 3) as {
+        neutral: boolean;
         hue: number;
         sat: number;
         lig: number;
       } | null;
       expect(mine).not.toBeNull();
-      expect(mine).toEqual({ hue: build!.hue, sat: build!.sat, lig: build!.lig });
+      expect(mine).toEqual({
+        neutral: build!.neutral,
+        hue: build!.hue,
+        sat: build!.sat,
+        lig: build!.lig,
+      });
     });
   }
 });
 
 describe('dominantColorFromPixels', () => {
-  it('reads a picture with no colour in it as nothing to walk to', () => {
-    expect(dominantColorFromPixels(flat([128, 128, 128]), 3)).toBeNull();
-    expect(dominantColorFromPixels(flat([0, 0, 0]), 3)).toBeNull();
-    expect(dominantColorFromPixels(flat([255, 255, 255]), 3)).toBeNull();
+  it('reads a picture with no colour as neutral, keeping its tone', () => {
+    for (const [rgb, tone] of [
+      [[128, 128, 128], 50],
+      [[0, 0, 0], 0],
+      [[255, 255, 255], 100],
+    ] as const) {
+      const out = dominantColorFromPixels(flat([...rgb] as [number, number, number]), 3);
+      expect(out).toEqual({ neutral: true, hue: 0, sat: 0, lig: tone });
+    }
+  });
+
+  it('agrees with the build extractor on a grey picture too', () => {
+    const grey = flat([128, 128, 128]);
+    const build = dominantColorFromRaw(grey, 3) as { neutral: boolean; lig: number };
+    const mine = dominantColorFromPixels(grey, 3)!;
+    expect(mine.neutral).toBe(build.neutral);
+    expect(mine.lig).toBe(build.lig);
   });
 
   it('reads an empty buffer as nothing rather than throwing', () => {

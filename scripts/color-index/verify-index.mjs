@@ -72,6 +72,31 @@ for (let b = 0; b < BUCKET_COUNT; b++) {
   counted += seen;
 }
 
+// The monochrome index: no hue to check, but a tone and a page count.
+const neutralFirst = await read('neutral.json');
+if (neutralFirst.count !== meta.neutral) fail(`neutral.json: count disagrees with meta.neutral`);
+if (neutralFirst.pages !== pageCount(neutralFirst.count)) fail('neutral.json: wrong page count');
+let neutralSeen = 0;
+for (let page = 0; page < neutralFirst.pages; page++) {
+  const file = page === 0 ? neutralFirst : await read(`neutral-${page}.json`);
+  let previousLig = -Infinity;
+  for (const item of file.items) {
+    checkItem(item, null, fail);
+    if (item.sat !== 0) fail(`neutral page ${page}: ${item.id} has saturation ${item.sat}`);
+    if (item.lig < previousLig) fail(`neutral page ${page}: items not sorted by tone`);
+    previousLig = item.lig;
+    neutralSeen++;
+  }
+  // Dealt round-robin, so every page must span the tonal range, not one end.
+  const ligs = file.items.map((i) => i.lig);
+  if (file.items.length > 50 && Math.max(...ligs) - Math.min(...ligs) < 20) {
+    fail(`neutral page ${page}: covers only tones ${Math.min(...ligs)}..${Math.max(...ligs)}`);
+  }
+}
+if (neutralSeen !== neutralFirst.count) {
+  fail(`neutral pages hold ${neutralSeen} items, count says ${neutralFirst.count}`);
+}
+
 const all = await read('all.json');
 if (all.count !== all.items.length) fail('all.json: count disagrees with items length');
 if (all.count !== Math.min(300, meta.total)) fail(`all.json: expected ${Math.min(300, meta.total)} items, got ${all.count}`);
@@ -96,6 +121,7 @@ if (meta.total < MIN_TOTAL) fail(`meta.total ${meta.total} is below the ${MIN_TO
 console.log(
   `checked ${works.size} works in ${counted} places across ${BUCKET_COUNT} buckets + all.json`,
 );
+console.log(`plus ${neutralSeen} monochrome works across ${neutralFirst.pages} pages`);
 console.log(`bySource ${JSON.stringify(meta.bySource)}  dropped ${JSON.stringify(meta.dropped)}`);
 if (errors.length > 0) {
   console.error(`FAILED (${errors.length} shown):`);

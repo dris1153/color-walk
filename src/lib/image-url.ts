@@ -30,5 +30,8 @@ export function isAllowedPageUrl(u: string): boolean {
   return isAllowedOn(u, ALLOWED_PAGE_HOSTS);
 }
 
-export const bucketFileUrl = (b: number | null): string =>
-  b === null ? '/index/all.json' : `/index/bucket-${String(b).padStart(2, '0')}.json`;
+/** `null` is the all-colours sample, `'grey'` the monochrome works. */
+export const bucketFileUrl = (b: number | null | 'grey'): string =>
+  b === null ? '/index/all.json'
+  : b === 'grey' ? '/index/neutral.json'
+  : `/index/bucket-${String(b).padStart(2, '0')}.json`;

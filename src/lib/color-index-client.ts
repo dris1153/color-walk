@@ -69,14 +69,14 @@ export function isItem(x: unknown): x is Item {
 
 /** Page 0 of a bucket declares how many pages it has. Derived from the file, so
  * unlike a cursor it cannot drift out of step with what the caller holds. */
-const totalPages = new Map<number, number>();
+const totalPages = new Map<number | 'grey', number>();
 
-const pageUrl = (bucket: number | null, page: number): string =>
-  page === 0
-    ? bucketFileUrl(bucket)
-    : `/index/bucket-${String(bucket).padStart(2, '0')}-${page}.json`;
+const pageUrl = (bucket: number | null | 'grey', page: number): string =>
+  page === 0 ? bucketFileUrl(bucket)
+  : bucket === 'grey' ? `/index/neutral-${page}.json`
+  : `/index/bucket-${String(bucket).padStart(2, '0')}-${page}.json`;
 
-async function fetchBucket(url: string, bucket: number | null): Promise<Item[]> {
+async function fetchBucket(url: string, bucket: number | null | 'grey'): Promise<Item[]> {
   const res = await fetch(url);
   if (!res.ok) throw new Error('index-load-failed');
   const data: unknown = await res.json();
@@ -92,7 +92,7 @@ async function fetchBucket(url: string, bucket: number | null): Promise<Item[]> 
  * shared rather than aborted - cancelling a same-origin static file saves
  * nothing and only earns a duplicate request on the next hue change.
  */
-function loadOneBucket(bucket: number | null, page = 0): Promise<Item[]> {
+function loadOneBucket(bucket: number | null | 'grey', page = 0): Promise<Item[]> {
   const url = pageUrl(bucket, page);
   const hit = bucketCache.get(url);
   if (hit) return Promise.resolve(hit);
@@ -120,8 +120,10 @@ function loadOneBucket(bucket: number | null, page = 0): Promise<Item[]> {
  * there is at least a screenful. The caller then sorts everything by distance to
  * the exact hue, so the closest colours still lead.
  */
-export async function loadBucketNear(bucket: number | null): Promise<Item[]> {
-  if (bucket === null) return loadOneBucket(null);
+export async function loadBucketNear(bucket: number | null | 'grey'): Promise<Item[]> {
+  // Neither the all-colours sample nor the monochrome works have neighbours:
+  // one is already a spread, the other has no hue to be near.
+  if (bucket === null || bucket === 'grey') return loadOneBucket(bucket);
 
   const out = [...(await loadOneBucket(bucket))];
   for (let ring = 1; out.length < MIN_ITEMS && ring <= MAX_RINGS; ring++) {
@@ -135,7 +137,7 @@ export async function loadBucketNear(bucket: number | null): Promise<Item[]> {
 
 /** `loaded` is the caller's own page count, so two views of one bucket cannot
  * steal each other's place in it. */
-export function hasMorePages(bucket: number | null, loaded: number): boolean {
+export function hasMorePages(bucket: number | null | 'grey', loaded: number): boolean {
   if (bucket === null) return false;
   return loaded < (totalPages.get(bucket) ?? 1);
 }
@@ -144,6 +146,6 @@ export function hasMorePages(bucket: number | null, loaded: number): boolean {
  * Only the primary bucket pages. Neighbours pad a thin hue, and a thin hue has
  * few works by definition, so their first 600 is already more than enough.
  */
-export function loadBucketPage(bucket: number, page: number): Promise<Item[]> {
+export function loadBucketPage(bucket: number | 'grey', page: number): Promise<Item[]> {
   return loadOneBucket(bucket, page);
 }
