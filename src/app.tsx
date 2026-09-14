@@ -4,6 +4,7 @@ import { useColumnCount } from './hooks/use-column-count';
 import { useArtworksByHue } from './hooks/use-artworks-by-hue';
 import { ColourControls } from './components/colour-controls';
 import { ArtworkMasonryGrid } from './components/artwork-masonry-grid';
+import { ArtworkHueRing } from './components/artwork-hue-ring';
 import {
   GalleryLoading,
   GalleryStatus,
@@ -35,6 +36,9 @@ export function App() {
   const { favourites, isSaved, toggle: toggleSave } = useFavourites();
   const [showingSaved, setShowingSaved] = useState(false);
   const sentinelRef = useRevealOnScroll(revealMore);
+  /** The landing view becomes the wheel itself, but only where there is room
+   *  for it: below 1024px a ring of this many works is unreadable. */
+  const asRing = hue === null && tone === null && !showingSaved && columns >= 4;
   const { selected, open, requestClose } = useDetailOverlay();
   const [needsReload, setNeedsReload] = useState(false);
   const [pendingColour, setPendingColour] = useState<{ hue: number; lig: number } | null>(null);
@@ -143,15 +147,19 @@ export function App() {
         {/* Reserves a viewport so the footer starts below the fold and the
             arriving grid cannot shift anything the reader can see. */}
         <div className="min-h-screen">
-          <ArtworkMasonryGrid
-            items={showingSaved ? favourites : revealed}
-            columns={columns}
-            onSelect={open}
-            onImageError={noteImageError}
-            onImageLoad={noteImageLoad}
-          />
-          <div ref={sentinelRef} className="h-px" />
-          {!showingSaved && (
+          {asRing ? (
+            <ArtworkHueRing items={items} onSelect={open} />
+          ) : (
+            <ArtworkMasonryGrid
+              items={showingSaved ? favourites : revealed}
+              columns={columns}
+              onSelect={open}
+              onImageError={noteImageError}
+              onImageLoad={noteImageLoad}
+            />
+          )}
+          {!asRing && <div ref={sentinelRef} className="h-px" />}
+          {!showingSaved && !asRing && (
             <GalleryStatus
               status={status}
               total={items.length}
