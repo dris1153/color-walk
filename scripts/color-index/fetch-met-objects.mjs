@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { getJson, sleep } from './http-util.mjs';
 import { CACHE_DIR } from './download-thumbnails.mjs';
+import { appendRecord, readIds } from './jsonl-cache.mjs';
 
 // v1 search is deprecated from Oct 2026; v1.1 for search, v1 for objects.
 // v1.1 search caps a page at 500 ids regardless of `limit`, so offset-page it.
@@ -13,52 +14,129 @@ const SEARCH_PAGE = 500;
 const OBJECT_DELAY_MS = 800;
 const BLOCK_COOLDOWN_MS = 90_000;
 const MAX_COOLDOWNS = 60;
-const SAVE_EVERY = 50;
-const OBJECT_CACHE = path.join(CACHE_DIR, 'met-objects.json');
 
-const searchUrl = (offset) =>
+export const MET_CACHE = path.join(CACHE_DIR, 'met-objects.jsonl');
+const LEGACY_CACHE = path.join(CACHE_DIR, 'met-objects.json');
+const IDS_CACHE = path.join(CACHE_DIR, 'met-ids.json');
+/** European Paintings, which the first index was built from. Widen with
+ *  --met-departments=11,6,14,21 (Asian, Islamic, Modern). */
+export const DEFAULT_MET_DEPARTMENTS = [11];
+
+const searchUrl = (departmentId, offset) =>
   'https://collectionapi.metmuseum.org/public/collection/v1.1/search' +
-  `?q=*&hasImages=true&isPublicDomain=true&departmentId=11&limit=${SEARCH_PAGE}&offset=${offset}`;
-const objectUrl = (id) =>
-  `https://collectionapi.metmuseum.org/public/collection/v1/objects/${id}`;
+  `?q=*&hasImages=true&isPublicDomain=true&departmentId=${departmentId}` +
+  `&limit=${SEARCH_PAGE}&offset=${offset}`;
+const departmentUrl = (departmentId) =>
+  `https://collectionapi.metmuseum.org/public/collection/v1/objects?departmentIds=${departmentId}`;
+const objectUrl = (id) => `https://collectionapi.metmuseum.org/public/collection/v1/objects/${id}`;
 
-async function loadCache() {
+/** The pre-JSONL cache is worth hours of crawling; carry it over once. */
+async function migrateLegacyCache(log) {
+  let legacy;
   try {
-    const parsed = JSON.parse(await readFile(OBJECT_CACHE, 'utf8'));
-    return typeof parsed === 'object' && parsed !== null ? parsed : {};
+    legacy = JSON.parse(await readFile(LEGACY_CACHE, 'utf8'));
   } catch {
-    return {};
+    return;
   }
+  const known = await readIds(MET_CACHE);
+  let moved = 0;
+  for (const [id, o] of Object.entries(legacy)) {
+    if (known.has(id)) continue;
+    await appendRecord(MET_CACHE, { id: Number(id), o });
+    moved++;
+  }
+  if (moved) log(`met: carried ${moved} objects over from the old JSON cache`);
 }
 
-const saveCache = (cache) => writeFile(OBJECT_CACHE, JSON.stringify(cache));
-
-async function searchAllIds(log) {
+async function searchDepartment(departmentId, log, control) {
   const ids = [];
   for (let offset = 0; ; offset += SEARCH_PAGE) {
-    const page = await getJson(searchUrl(offset));
+    if (control?.stopped) return { ids, complete: false };
+    const page = await getJson(searchUrl(departmentId, offset));
     const batch = Array.isArray(page?.objectIDs) ? page.objectIDs : [];
     ids.push(...batch);
+    await control?.progress({ stage: `met search ${departmentId}`, done: ids.length, total: page?.total ?? 0 });
     if (batch.length < SEARCH_PAGE) {
-      log(`met: search reports ${page?.total ?? '?'} total, collected ${ids.length} ids`);
-      return ids;
+      log(`met: department ${departmentId} reports ${page?.total ?? '?'}, collected ${ids.length}`);
+      return { ids, complete: true };
     }
+    await sleep(OBJECT_DELAY_MS); // search pages count against the same WAF budget
   }
 }
 
 /**
- * No batch endpoint exists, so every object is its own request. Results are
- * cached by id, so a run that ends early resumes exactly where it stopped.
- * A cached `null` means permanently gone (404); a missing key means "retry".
+ * The department listing: one request, no cap, every object in the department
+ * whether or not it is usable. normalizeArtwork drops the rest, which measured
+ * 3-15% of a department, and that waste is the price of the ids search cannot
+ * reach.
  */
-export async function fetchMetObjects({ limit = Infinity, log = console.log } = {}) {
-  await mkdir(CACHE_DIR, { recursive: true });
-  const cache = await loadCache();
+async function departmentObjectIds(departmentId, log) {
+  const page = await getJson(departmentUrl(departmentId));
+  const ids = Array.isArray(page?.objectIDs) ? page.objectIDs : [];
+  log(`met: department ${departmentId} lists ${ids.length} objects`);
+  return ids;
+}
 
-  const ids = [...new Set(await searchAllIds(log))]
-    .filter((id) => Number.isInteger(id) && id > 0)
-    .slice(0, limit);
-  const missing = ids.filter((id) => !(String(id) in cache));
+/**
+ * Both id sources, unioned, because neither is a superset of the other:
+ * measured 2026-09-14, search reports 34,217 usable works in Asian Art but
+ * hands out only the first 10,000, while the department listing returns all
+ * 37,320 objects it holds - and yet for European Paintings the listing has
+ * 2,644 against search's 2,721. Either one alone silently loses works.
+ *
+ * The union costs ~21 requests per department, dead weight on a short bounded
+ * run, so it is cached under the key of the departments that produced it.
+ */
+async function collectIds(departments, { log, control, refreshIds }) {
+  const key = departments.join(',');
+  if (!refreshIds) {
+    try {
+      const cached = JSON.parse(await readFile(IDS_CACHE, 'utf8'));
+      if (cached?.key === key && Array.isArray(cached.ids)) {
+        log(`met: ${cached.ids.length} ids from cache (--refresh-ids to search again)`);
+        return cached.ids;
+      }
+    } catch {
+      // no usable id cache; fall through and search
+    }
+  }
+  const found = [];
+  let complete = true;
+  for (const departmentId of departments) {
+    const result = await searchDepartment(departmentId, log, control);
+    found.push(...result.ids);
+    complete &&= result.complete;
+    if (control?.stopped) break;
+    found.push(...(await departmentObjectIds(departmentId, log)));
+    await sleep(OBJECT_DELAY_MS);
+  }
+  const ids = [...new Set(found)].filter((id) => Number.isInteger(id) && id > 0);
+  // A half-finished search must never be cached, or the next run would treat
+  // the departments it never reached as already collected.
+  if (complete) await writeFile(IDS_CACHE, JSON.stringify({ key, ids }));
+  else log('met: search was cut short, so the id list is not cached');
+  log(`met: ${ids.length} unique ids across departments ${key}`);
+  return ids;
+}
+
+/**
+ * No batch endpoint exists, so every object is its own request. Each result is
+ * appended the moment it arrives, so a run that ends early - by Ctrl+C, by
+ * --minutes, or by a WAF block - loses at most the request in flight.
+ */
+export async function fetchMetObjects({
+  departments = DEFAULT_MET_DEPARTMENTS,
+  limit = Infinity,
+  refreshIds = false,
+  control,
+  log = console.log,
+} = {}) {
+  await mkdir(CACHE_DIR, { recursive: true });
+  await migrateLegacyCache(log);
+
+  const ids = (await collectIds(departments, { log, control, refreshIds })).slice(0, limit);
+  const known = await readIds(MET_CACHE);
+  const missing = ids.filter((id) => !known.has(String(id)));
   log(`met: ${ids.length} ids, ${ids.length - missing.length} cached, fetching ${missing.length}`);
 
   let done = 0;
@@ -66,36 +144,35 @@ export async function fetchMetObjects({ limit = Infinity, log = console.log } = 
   let cooldowns = 0;
 
   for (const id of missing) {
+    if (control?.stopped) {
+      log(`met: ${control.reason} at ${done}/${missing.length}`);
+      return { fetched: done, gone, remaining: missing.length - done, stopped: true };
+    }
     let settled = false;
     while (!settled) {
       try {
-        cache[String(id)] = await getJson(objectUrl(id), { retries: 1 });
+        await appendRecord(MET_CACHE, { id, o: await getJson(objectUrl(id), { retries: 1 }) });
         settled = true;
       } catch (err) {
         if (err?.status !== 403) {
-          cache[String(id)] = null; // 404 and friends: do not ask again
+          await appendRecord(MET_CACHE, { id, o: null }); // 404 and friends: never ask again
           gone++;
           settled = true;
         } else if (++cooldowns > MAX_COOLDOWNS) {
-          await saveCache(cache);
           log(`met: still blocked after ${MAX_COOLDOWNS} cooldowns - stopping, re-run to resume`);
-          return ids.map((x) => cache[String(x)]).filter((o) => o);
+          return { fetched: done, gone, remaining: missing.length - done, stopped: true };
         } else {
-          await saveCache(cache);
           log(`met: blocked, cooling down 90s (${cooldowns}/${MAX_COOLDOWNS}), ${done}/${missing.length} done`);
-          await sleep(BLOCK_COOLDOWN_MS);
+          if (control) await control.wait(BLOCK_COOLDOWN_MS);
+          else await sleep(BLOCK_COOLDOWN_MS);
         }
       }
     }
-    if (++done % SAVE_EVERY === 0) {
-      await saveCache(cache);
-      log(`met: ${done}/${missing.length}`);
-    }
+    done++;
+    await control?.progress({ stage: 'met objects', done, total: missing.length });
     await sleep(OBJECT_DELAY_MS);
   }
 
-  await saveCache(cache);
-  const objects = ids.map((id) => cache[String(id)]).filter((o) => o);
-  log(`met: ${objects.length} objects available, ${gone} gone`);
-  return objects;
+  log(`met: ${done} fetched this run, ${gone} gone`);
+  return { fetched: done, gone, remaining: 0, stopped: false };
 }

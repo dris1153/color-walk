@@ -8,7 +8,7 @@ export const ALL_LIMIT = 300;
 /**
  * Works per bucket file. At ~500 bytes an item that is roughly 55 KB gzipped,
  * small enough to fetch without blocking first paint. The hottest bucket holds
- * 4,406 works today and is projected past 30,000, so one file per bucket stopped
+ * 4,407 works today and is projected past 30,000, so one file per bucket stopped
  * being viable; overflow spills into numbered pages instead of being capped.
  */
 export const PAGE_SIZE = 600;

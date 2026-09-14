@@ -33,21 +33,26 @@ const saveManifest = (m) => writeFile(MANIFEST_PATH, JSON.stringify(m));
 /**
  * Fills `.cache/{id}.jpg` and, for Met only, `item.bigBytes` via HEAD (CMA
  * reports it in the API). Resumable: an existing non-empty cache file is never
- * re-fetched, and HEAD results persist in the manifest.
+ * re-fetched, and HEAD results persist in the manifest. A stopped `control`
+ * leaves the rest on disk for the next run rather than abandoning the index.
  * Mutates `item.bigBytes`; returns the items whose thumbnail is on disk.
  */
-export async function downloadThumbnails(items, { log = console.log } = {}) {
+export async function downloadThumbnails(items, { control, log = console.log } = {}) {
   await mkdir(CACHE_DIR, { recursive: true });
   const manifest = await loadManifest();
   const ok = [];
   let downloaded = 0;
   let cached = 0;
   let failed = 0;
+  let skipped = 0;
 
   await pool(items, CONCURRENCY, async (item) => {
     if ((await cachedSize(item.id)) > 0) {
       cached++;
       ok.push(item);
+    } else if (control?.stopped) {
+      // Not on disk and no time left to fetch it: it simply misses this index.
+      skipped++;
     } else {
       try {
         const buf = await getBuffer(item.thumb);
@@ -61,13 +66,15 @@ export async function downloadThumbnails(items, { log = console.log } = {}) {
         manifest.failed[item.id] = String(err?.message ?? err).slice(0, 200);
       }
     }
-    const seen = downloaded + cached + failed;
+    const seen = downloaded + cached + failed + skipped;
     if (seen % 250 === 0) log(`thumbs: ${seen}/${items.length}`);
+    await control?.progress({ stage: 'thumbnails', done: seen, total: items.length });
   });
+  if (skipped) log(`thumbs: ${control.reason}, ${skipped} left for the next run`);
 
-  const needHead = ok.filter(
-    (item) => item.src === 'met' && !(item.id in manifest.bigBytes),
-  );
+  const needHead = control?.stopped
+    ? []
+    : ok.filter((item) => item.src === 'met' && !(item.id in manifest.bigBytes));
   log(`thumbs: ${downloaded} downloaded, ${cached} cached, ${failed} failed; ${needHead.length} HEAD`);
 
   await pool(needHead, CONCURRENCY, async (item) => {
@@ -78,5 +85,5 @@ export async function downloadThumbnails(items, { log = console.log } = {}) {
   }
 
   await saveManifest(manifest);
-  return { items: ok, downloaded, cached, failed };
+  return { items: ok, downloaded, cached, failed, skipped };
 }

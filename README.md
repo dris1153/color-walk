@@ -114,6 +114,40 @@ What to expect on a cold cache:
 - `--source=met` and `--source=cma` restrict the run to one museum, and
   `--limit=N` caps how many records each source contributes.
 
+### Running a long crawl across several sessions
+
+A crawl wide enough to fill the cold hues runs for the better part of a day, so
+it is built to be stopped and picked up again rather than babysat:
+
+```bash
+npm run build:index -- --met-departments=11,6,14,21 --cma-types=all --minutes=120
+npm run crawl:status        # from a second terminal, at any time
+```
+
+- **Ctrl+C pauses.** The stage finishes the item in flight, writes the index
+  from everything cached so far, and prints the command to resume. A second
+  Ctrl+C exits at once, at the cost of the one request in flight.
+- **`--minutes=N` bounds a run** the same way, so an unattended evening session
+  stops on its own with a usable index.
+- **Every run rewrites `public/index/`** from the whole cache, not just what it
+  fetched, so the site is usable after the first session instead of after the
+  last one.
+- **The cache is cumulative and append-only.** `met-objects.jsonl` and
+  `cma-artworks.jsonl` are only ever appended to, so a kill can damage at most
+  the final line, which parsing discards. It also means the index reflects every
+  department ever crawled, not only the ones named in the current run.
+- **`--met-departments=` takes Met department ids**; 11 European Paintings,
+  6 Asian Art, 14 Islamic Art, 21 Modern Art. `--cma-types=all` lifts the CMA
+  filter from Paintings to the whole CC0 collection (41,514 works).
+  `--refresh-ids` re-runs the id search instead of reusing the cached list.
+
+Expect roughly 71,000 Met object requests at 1.25 req/s for those four
+departments, about 16 hours, plus the thumbnail stage. The Met search endpoint
+stops serving ids past offset 10,000 whatever total it reports, so ids come from
+the union of the search and the uncapped department listing; the listing carries
+3-15% of objects that are not public domain or have no image, and those are
+dropped at normalisation.
+
 If `import('sharp')` fails, run `npm rebuild sharp --foreground-scripts`. That
 is needed because `ignore-scripts=true` suppresses sharp's install script.
 

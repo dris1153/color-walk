@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "build:index": "node scripts/color-index/build-color-index.mjs",
-    "verify:index": "node scripts/color-index/verify-index.mjs"
+    "verify:index": "node scripts/color-index/verify-index.mjs",
+    "crawl:status": "node scripts/color-index/crawl-status.mjs"
   },
   "dependencies": {
     "openseadragon": "6.1.1",

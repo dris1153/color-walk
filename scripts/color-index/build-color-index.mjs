@@ -2,8 +2,10 @@
 import os from 'node:os';
 import path from 'node:path';
 import { pool } from './http-util.mjs';
-import { fetchMetObjects } from './fetch-met-objects.mjs';
-import { fetchCmaArtworks } from './fetch-cma-artworks.mjs';
+import { createControl } from './crawl-control.mjs';
+import { readRecords } from './jsonl-cache.mjs';
+import { DEFAULT_MET_DEPARTMENTS, MET_CACHE, fetchMetObjects } from './fetch-met-objects.mjs';
+import { CMA_CACHE, DEFAULT_CMA_TYPES, fetchCmaArtworks } from './fetch-cma-artworks.mjs';
 import { normalizeArtwork } from './normalize-artwork.mjs';
 import { downloadThumbnails, readCachedThumb } from './download-thumbnails.mjs';
 import { extractDominantColor } from './extract-dominant-color.mjs';
@@ -16,38 +18,54 @@ const log = (msg) => {
   console.log(`[${s}s] ${msg}`);
 };
 
+const numberList = (value) => value.split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
+
 function parseArgs(argv) {
-  let source = 'both';
-  let limit = Infinity;
+  const args = {
+    source: 'both',
+    limit: Infinity,
+    metDepartments: DEFAULT_MET_DEPARTMENTS,
+    cmaTypes: DEFAULT_CMA_TYPES,
+    minutes: 0,
+    refreshIds: argv.includes('--refresh-ids'),
+  };
   for (const arg of argv) {
-    const m = /^--(source|limit)=(.+)$/.exec(arg);
+    const m = /^--([a-z-]+)=(.+)$/.exec(arg);
     if (!m) continue;
-    if (m[1] === 'source') source = m[2];
-    else limit = Number(m[2]);
+    if (m[1] === 'source') args.source = m[2];
+    else if (m[1] === 'limit') args.limit = Number(m[2]);
+    else if (m[1] === 'minutes') args.minutes = Number(m[2]);
+    else if (m[1] === 'met-departments') args.metDepartments = numberList(m[2]);
+    else if (m[1] === 'cma-types') args.cmaTypes = m[2].split(',').filter(Boolean);
   }
-  if (!['both', 'met', 'cma'].includes(source)) throw new Error(`bad --source=${source}`);
-  if (!(limit > 0)) throw new Error('--limit must be a positive number');
-  return { source, limit };
+  if (!['both', 'met', 'cma'].includes(args.source)) throw new Error(`bad --source=${args.source}`);
+  if (!(args.limit > 0)) throw new Error('--limit must be a positive number');
+  if (!(args.minutes >= 0)) throw new Error('--minutes must be a positive number');
+  if (args.metDepartments.length === 0) throw new Error('--met-departments must list department ids');
+  return args;
 }
 
-async function collectRaw({ source, limit }) {
-  const raw = [];
-  if (source !== 'cma') {
-    for (const o of await fetchMetObjects({ limit, log })) raw.push([o, 'met']);
-  }
-  if (source !== 'met') {
-    for (const o of await fetchCmaArtworks({ limit, log })) raw.push([o, 'cma']);
-  }
-  return raw;
-}
-
-function normalizeAll(raw) {
+/**
+ * Streams the raw caches rather than loading them: at 60k Met objects the
+ * combined raw JSON is ~148 MB, and only the normalised item is worth keeping.
+ */
+async function normalizeAll({ source, limit }) {
   const byId = new Map();
   let dropped = 0;
-  for (const [record, src] of raw) {
-    const item = normalizeArtwork(record, src);
-    if (!item) dropped++;
-    else if (!byId.has(item.id)) byId.set(item.id, item);
+  const files = [
+    ['met', MET_CACHE],
+    ['cma', CMA_CACHE],
+  ].filter(([src]) => source === 'both' || source === src);
+
+  for (const [src, file] of files) {
+    let seen = 0;
+    for await (const record of readRecords(file)) {
+      if (!record?.o || seen >= limit) continue;
+      seen++;
+      const item = normalizeArtwork(record.o, src);
+      if (!item) dropped++;
+      else if (!byId.has(item.id)) byId.set(item.id, item);
+    }
   }
   return { items: [...byId.values()], dropped };
 }
@@ -76,31 +94,59 @@ async function colorizeAll(items) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  log(`build:index source=${args.source} limit=${args.limit}`);
+  const command = ['npm run build:index --', ...process.argv.slice(2)].join(' ');
+  const control = createControl({ minutes: args.minutes, command, log: console.log });
+  log(`build:index source=${args.source} limit=${args.limit} minutes=${args.minutes || 'unbounded'}`);
+  log(`met departments ${args.metDepartments.join(',')}, cma types ${args.cmaTypes.join(',')}`);
   if (args.source !== 'both' || args.limit !== Infinity) {
     log('WARNING: partial run - public/index will not be a complete index');
   }
 
-  const raw = await collectRaw(args);
-  log(`fetched ${raw.length} raw records`);
+  try {
+    if (args.source !== 'cma') {
+      await fetchMetObjects({
+        departments: args.metDepartments,
+        limit: args.limit,
+        refreshIds: args.refreshIds,
+        control,
+        log,
+      });
+    }
+    if (args.source !== 'met') {
+      await fetchCmaArtworks({ types: args.cmaTypes, limit: args.limit, control, log });
+    }
 
-  const normalized = normalizeAll(raw);
-  log(`normalized ${normalized.items.length}, dropped ${normalized.dropped} in validation`);
+    const normalized = await normalizeAll(args);
+    log(`normalized ${normalized.items.length}, dropped ${normalized.dropped} in validation`);
 
-  const downloaded = await downloadThumbnails(normalized.items, { log });
-  log(`thumbnails ready for ${downloaded.items.length}`);
+    const downloaded = await downloadThumbnails(normalized.items, { control, log });
+    log(`thumbnails ready for ${downloaded.items.length}`);
 
-  const colored = await colorizeAll(downloaded.items);
-  log(`coloured ${colored.items.length}, ${colored.achromatic} achromatic, ${colored.decodeFailed} undecodable`);
+    const colored = await colorizeAll(downloaded.items);
+    log(`coloured ${colored.items.length}, ${colored.achromatic} achromatic, ${colored.decodeFailed} undecodable`);
 
-  const meta = await writeBucketFiles(colored.items, OUT_DIR, {
-    validation: normalized.dropped,
-    achromatic: colored.achromatic,
-    download: downloaded.failed + colored.decodeFailed,
-  });
+    // Written on every run, complete or not, so the site always reflects the
+    // crawl so far instead of needing all 24 hours before it is usable.
+    const meta = await writeBucketFiles(colored.items, OUT_DIR, {
+      validation: normalized.dropped,
+      achromatic: colored.achromatic,
+      download: downloaded.failed + colored.decodeFailed,
+    });
 
-  log(`wrote ${OUT_DIR}`);
-  console.log(JSON.stringify(meta, null, 2));
+    log(`wrote ${OUT_DIR}`);
+    await control.finish({
+      stage: 'done',
+      done: colored.items.length,
+      total: colored.items.length,
+      perMinute: null,
+      minutesLeft: null,
+      finished: control.stopped ? control.reason : 'complete',
+    });
+    if (control.stopped) log(`stopped early (${control.reason}). Resume with: ${command}`);
+    console.log(JSON.stringify(meta, null, 2));
+  } finally {
+    control.release();
+  }
 }
 
 main().catch((err) => {
