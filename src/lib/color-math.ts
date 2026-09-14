@@ -58,6 +58,11 @@ export const TONE_WEIGHT = 0.5;
  */
 export const TONE_MIN = 15;
 export const TONE_MAX = 80;
+
+/** The one place a lightness becomes a tone, so the readout and the sort cannot
+ *  disagree about what a link or a work's own colour meant. */
+export const clampTone = (lightness: number): number =>
+  Math.min(TONE_MAX, Math.max(TONE_MIN, Math.round(lightness)));
 /** Prefers the vivid work at equal hue. Unrelated to a reader-chosen tone. */
 const VIVID_TIEBREAK = 0.15;
 

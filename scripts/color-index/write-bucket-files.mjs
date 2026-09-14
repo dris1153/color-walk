@@ -19,6 +19,9 @@ const wrap360 = (h) => ((h % 360) + 360) % 360;
 export const hueToBucket = (h) => Math.round(wrap360(h) / BUCKET_WIDTH) % BUCKET_COUNT;
 
 const byPctDesc = (a, b) => b.pct - a.pct;
+// Tie-broken by id so a rebuild cannot reshuffle equal works and churn the file.
+const bySatDesc = (a, b) => b.sat - a.sat || a.id.localeCompare(b.id);
+const byHueAsc = (a, b) => a.hue - b.hue || a.id.localeCompare(b.id);
 
 export function buildBuckets(items) {
   const buckets = Array.from({ length: BUCKET_COUNT }, (_, bucket) => ({
@@ -35,9 +38,24 @@ export function buildBuckets(items) {
   return buckets;
 }
 
-export function buildAll(items) {
-  const top = [...items].sort(byPctDesc).slice(0, ALL_LIMIT);
-  return { count: top.length, items: top };
+/**
+ * Taking the top 300 by pct put 299 of them in one bucket, every one at
+ * pct >= 0.999: flat, aged-paper images, so a site about colour opened on almost
+ * none of it. Instead an even share of every occupied bucket, most saturated
+ * first within each. Thin hues are allocated first, so whatever they cannot fill
+ * flows to the hues that can, and the result still lands on ALL_LIMIT. Ordered
+ * by hue, so the grid reads as a walk around the wheel.
+ */
+export function buildAll(buckets) {
+  const live = buckets.filter((b) => b.items.length > 0).sort((a, b) => a.items.length - b.items.length);
+  const picked = [];
+  let left = ALL_LIMIT;
+  live.forEach((b, i) => {
+    const take = Math.min(Math.ceil(left / (live.length - i)), b.items.length);
+    picked.push(...[...b.items].sort(bySatDesc).slice(0, take));
+    left -= take;
+  });
+  return { count: picked.length, items: picked.sort(byHueAsc) };
 }
 
 const bucketFileName = (b, page = 0) =>
@@ -51,7 +69,7 @@ export const pageCount = (total) => Math.max(1, Math.ceil(total / PAGE_SIZE));
 export async function writeBucketFiles(items, outDir, dropped = {}) {
   await mkdir(outDir, { recursive: true });
   const buckets = buildBuckets(items);
-  const all = buildAll(items);
+  const all = buildAll(buckets);
 
   for (const b of buckets) {
     const pages = pageCount(b.count);

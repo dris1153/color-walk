@@ -1,15 +1,21 @@
-import { TONE_MAX, TONE_MIN } from './color-math';
+import { clampTone } from './color-math';
 
 export type ViewState = {
   hue: number | null;
   tone: number | null;
 };
 
-const clampInt = (value: string | null, min: number, max: number): number | null => {
+const clampHue = (value: string | null): number | null => {
   if (value === null) return null;
   const n = Number(value);
   if (!Number.isFinite(n)) return null;
-  return Math.min(max, Math.max(min, Math.round(n)));
+  return Math.min(359, Math.max(0, Math.round(n)));
+};
+
+const parseTone = (value: string | null): number | null => {
+  if (value === null) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? clampTone(n) : null;
 };
 
 /**
@@ -20,10 +26,10 @@ export function parseViewHash(hash: string): ViewState {
   const params = new URLSearchParams(hash.replace(/^#/, ''));
   const rawHue = params.get('h');
   return {
-    hue: rawHue === null || rawHue === 'all' ? null : clampInt(rawHue, 0, 359),
+    hue: rawHue === null || rawHue === 'all' ? null : clampHue(rawHue),
     // Clamped to the same range the slider offers, so an old link cannot leave
     // the readout showing one value while the sort uses another.
-    tone: clampInt(params.get('l'), TONE_MIN, TONE_MAX),
+    tone: parseTone(params.get('l')),
   };
 }
 

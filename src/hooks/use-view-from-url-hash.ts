@@ -16,6 +16,11 @@ export function useViewFromUrlHash(): {
    * no argument.
    */
   commitHash: (next?: Partial<ViewState>) => void;
+  /**
+   * A discrete jump, not a drag, so it earns its own history entry and Back
+   * returns the reader to the colour they came from.
+   */
+  pushHash: (next: Partial<ViewState>) => void;
 } {
   const [view, setView] = useState<ViewState>(() => parseViewHash(window.location.hash));
   const viewRef = useRef(view);
@@ -47,6 +52,19 @@ export function useViewFromUrlHash(): {
     [write],
   );
 
+  const pushHash = useCallback((next: Partial<ViewState>) => {
+    viewRef.current = { ...viewRef.current, ...next };
+    window.clearTimeout(timer.current);
+    lastCommit.current = Date.now();
+    try {
+      // null state, not the current one: a colour is a gallery entry, and
+      // copying a detail marker here would leave a phantom overlay entry.
+      history.pushState(null, '', formatViewHash(viewRef.current));
+    } catch {
+      /* Safari throttle: the view still lives in React state, so nothing breaks. */
+    }
+  }, []);
+
   useEffect(() => {
     const onHashChange = () => {
       const next = parseViewHash(window.location.hash);
@@ -61,5 +79,5 @@ export function useViewFromUrlHash(): {
     };
   }, []);
 
-  return { hue: view.hue, tone: view.tone, setHue, setTone, commitHash };
+  return { hue: view.hue, tone: view.tone, setHue, setTone, commitHash, pushHash };
 }

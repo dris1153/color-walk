@@ -22,9 +22,16 @@ type Props = {
   isSaved: boolean;
   onToggleSave: (item: Item) => void;
   onRequestClose: () => void;
+  onBrowseColour: (item: Item) => void;
 };
 
-export function ArtworkDetailOverlay({ item, isSaved, onToggleSave, onRequestClose }: Props) {
+export function ArtworkDetailOverlay({
+  item,
+  isSaved,
+  onToggleSave,
+  onRequestClose,
+  onBrowseColour,
+}: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const canZoom = isAllowedImageUrl(item.big);
   const [posterVisible, setPosterVisible] = useState(true);
@@ -121,7 +128,12 @@ export function ArtworkDetailOverlay({ item, isSaved, onToggleSave, onRequestClo
         </div>
 
         <aside className="max-h-[45%] w-full shrink-0 border-t border-ink/10 lg:max-h-none lg:w-90 lg:border-l lg:border-t-0">
-          <ArtworkMetadataPanel item={item} isSaved={isSaved} onToggleSave={onToggleSave} />
+          <ArtworkMetadataPanel
+            item={item}
+            isSaved={isSaved}
+            onToggleSave={onToggleSave}
+            onBrowseColour={onBrowseColour}
+          />
         </aside>
       </div>
 

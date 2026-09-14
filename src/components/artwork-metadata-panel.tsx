@@ -6,9 +6,10 @@ type Props = {
   item: Item;
   isSaved: boolean;
   onToggleSave: (item: Item) => void;
+  onBrowseColour: (item: Item) => void;
 };
 
-export function ArtworkMetadataPanel({ item, isSaved, onToggleSave }: Props) {
+export function ArtworkMetadataPanel({ item, isSaved, onToggleSave, onBrowseColour }: Props) {
   // OpenSeadragon and the browser will follow whatever URL they are handed, so
   // a hand-edited index file must not be able to aim either one elsewhere.
   const museumLink = isAllowedPageUrl(item.page) ? item.page : null;
@@ -21,16 +22,22 @@ export function ArtworkMetadataPanel({ item, isSaved, onToggleSave }: Props) {
         {item.d && <p className="text-sm text-ink/50">{item.d}</p>}
       </div>
 
-      <div className="flex items-center gap-3">
+      {/* The colour is the way back to the wheel: without it a work is a dead
+          end, closable but with no route to anything like it. */}
+      <button
+        type="button"
+        onClick={() => onBrowseColour(item)}
+        className="group flex items-center gap-3 self-start text-left"
+      >
         <span
           aria-hidden
-          className="h-10 w-10 shrink-0 border border-ink/20"
+          className="h-10 w-10 shrink-0 border border-ink/20 group-hover:border-ink/60"
           style={{ backgroundColor: item.hex }}
         />
-        <span className="font-mono text-xs tracking-widest uppercase text-ink/70">
-          H {item.hue} / {nearestColorName(item.hue)}
+        <span className="font-mono text-xs tracking-widest uppercase text-ink/70 underline decoration-ink/25 underline-offset-4 group-hover:text-ink group-hover:decoration-ink/60">
+          Browse H {item.hue} / {nearestColorName(item.hue)}
         </span>
-      </div>
+      </button>
 
       {item.credit && <p className="text-xs leading-relaxed text-ink/50">{item.credit}</p>}
 

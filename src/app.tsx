@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useViewFromUrlHash } from './hooks/use-view-from-url-hash';
 import { useColumnCount } from './hooks/use-column-count';
 import { useArtworksByHue } from './hooks/use-artworks-by-hue';
@@ -12,17 +12,17 @@ import {
 import { AttributionFooter } from './components/attribution-footer';
 import { SavedToggle } from './components/saved-toggle';
 import { useFavourites } from './hooks/use-favourites';
+import { useRevealOnScroll } from './hooks/use-reveal-on-scroll';
+import { useDetailOverlay } from './hooks/use-detail-overlay';
 import { nearestColorName } from './lib/color-name-table';
+import { clampTone } from './lib/color-math';
 import { ArtworkDetailOverlay } from './components/artwork-detail-overlay';
 import type { Item } from './lib/color-index-client';
 
 const NEUTRAL_ACCENT = '#6b7280';
 
-const isDetailEntry = (state: unknown) =>
-  (state as { cw?: string } | null)?.cw === 'detail';
-
 export function App() {
-  const { hue, tone, setHue, setTone, commitHash } = useViewFromUrlHash();
+  const { hue, tone, setHue, setTone, commitHash, pushHash } = useViewFromUrlHash();
   const columns = useColumnCount();
   const {
     items,
@@ -37,10 +37,10 @@ export function App() {
   } = useArtworksByHue(hue, tone, columns);
   const { favourites, isSaved, toggle: toggleSave } = useFavourites();
   const [showingSaved, setShowingSaved] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const [selected, setSelected] = useState<Item | null>(null);
+  const sentinelRef = useRevealOnScroll(revealMore);
+  const { selected, open, requestClose } = useDetailOverlay();
   const [needsReload, setNeedsReload] = useState(false);
-  const closingRef = useRef(false);
+  const [pendingColour, setPendingColour] = useState<Item | null>(null);
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -52,19 +52,6 @@ export function App() {
   useEffect(() => {
     document.title = hue === null ? 'Color Walk' : `Color Walk - H ${hue} / ${nearestColorName(hue)}`;
   }, [hue]);
-
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) revealMore();
-      },
-      { rootMargin: '100% 0px' },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [revealMore]);
 
   const browseHue = useCallback(
     (next: number | null) => {
@@ -90,30 +77,29 @@ export function App() {
     [browseHue, commitHash],
   );
 
-  const open = useCallback((item: Item) => {
-    history.pushState({ cw: 'detail', id: item.id }, '');
-    setSelected(item);
-  }, []);
+  // A work's own colour is the way back to the wheel. Both axes are set, not
+  // just the hue: the swatch showed one colour, and hue alone would answer with
+  // that hue at every lightness.
+  const browseColour = useCallback(
+    (item: Item) => {
+      setPendingColour(item);
+      requestClose();
+    },
+    [requestClose],
+  );
 
-  // Repeated Escape before popstate lands must not pop a second entry and walk
-  // the visitor off the site; a Forward-orphaned entry must still close.
-  const requestClose = useCallback(() => {
-    if (closingRef.current) return;
-    closingRef.current = true;
-    if (isDetailEntry(history.state)) history.back();
-    else setSelected(null);
-    if (!isDetailEntry(history.state)) closingRef.current = false;
-  }, []);
-
+  // Closing the overlay is a history.back(), which lands after this tick and
+  // would restore the URL this wrote. So the colour is applied only once the
+  // overlay is actually gone.
   useEffect(() => {
-    const onPopState = (event: PopStateEvent) => {
-      if (isDetailEntry(event.state)) return; // navigating into a detail entry
-      closingRef.current = false;
-      setSelected(null);
-    };
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, []);
+    if (!pendingColour || selected) return;
+    const tone = clampTone(pendingColour.lig);
+    setShowingSaved(false);
+    setHue(pendingColour.hue);
+    setTone(tone);
+    pushHash({ hue: pendingColour.hue, tone });
+    setPendingColour(null);
+  }, [pendingColour, selected, setHue, setTone, pushHash]);
 
   useEffect(() => {
     const onPreloadError = () => setNeedsReload(true);
@@ -191,6 +177,7 @@ export function App() {
           isSaved={isSaved(selected.id)}
           onToggleSave={toggleSave}
           onRequestClose={requestClose}
+          onBrowseColour={browseColour}
         />
       )}
     </>

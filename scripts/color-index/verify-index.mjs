@@ -65,9 +65,16 @@ for (let b = 0; b < BUCKET_COUNT; b++) {
 const all = await read('all.json');
 if (all.count !== all.items.length) fail('all.json: count disagrees with items length');
 if (all.count !== Math.min(300, meta.total)) fail(`all.json: expected ${Math.min(300, meta.total)} items, got ${all.count}`);
+const allBuckets = new Set();
 for (const [i, item] of all.items.entries()) {
   checkItem(item, null, fail);
-  if (i > 0 && all.items[i - 1].pct < item.pct) fail('all.json: items not sorted by pct');
+  if (i > 0 && all.items[i - 1].hue > item.hue) fail('all.json: items not sorted by hue');
+  allBuckets.add(hueToBucket(item.hue));
+}
+// The landing view must show the collection's colour range, not one bucket's.
+const occupied = meta.byBucket.filter((n) => n > 0).length;
+if (allBuckets.size < occupied) {
+  fail(`all.json: covers ${allBuckets.size} of ${occupied} occupied buckets`);
 }
 
 if (counted !== meta.total) fail(`bucket counts sum to ${counted}, meta.total is ${meta.total}`);
