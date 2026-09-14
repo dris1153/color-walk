@@ -88,18 +88,25 @@ export function App() {
     [requestClose],
   );
 
+  const jumpToColour = useCallback(
+    (nextHue: number, lightness: number) => {
+      const tone = clampTone(lightness);
+      setShowingSaved(false);
+      setHue(nextHue);
+      setTone(tone);
+      pushHash({ hue: nextHue, tone });
+    },
+    [setHue, setTone, pushHash],
+  );
+
   // Closing the overlay is a history.back(), which lands after this tick and
   // would restore the URL this wrote. So the colour is applied only once the
   // overlay is actually gone.
   useEffect(() => {
     if (!pendingColour || selected) return;
-    const tone = clampTone(pendingColour.lig);
-    setShowingSaved(false);
-    setHue(pendingColour.hue);
-    setTone(tone);
-    pushHash({ hue: pendingColour.hue, tone });
+    jumpToColour(pendingColour.hue, pendingColour.lig);
     setPendingColour(null);
-  }, [pendingColour, selected, setHue, setTone, pushHash]);
+  }, [pendingColour, selected, jumpToColour]);
 
   useEffect(() => {
     const onPreloadError = () => setNeedsReload(true);
@@ -132,6 +139,7 @@ export function App() {
           onToneChange={browseTone}
           onGestureEnd={commitHash}
           onSelect={open}
+          onColourFromImage={jumpToColour}
         />
       </div>
 

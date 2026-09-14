@@ -6,6 +6,7 @@ import type { Item } from '../lib/color-index-client';
 import type { ViewState } from '../lib/view-hash';
 import { HueWheel } from './hue-wheel';
 import { ToneSlider } from './tone-slider';
+import { ColourFromImage } from './colour-from-image';
 
 type Props = {
   hue: number | null;
@@ -15,6 +16,7 @@ type Props = {
   onToneChange: (tone: number | null) => void;
   onGestureEnd: (next?: Partial<ViewState>) => void;
   onSelect: (item: Item) => void;
+  onColourFromImage: (hue: number, lightness: number) => void;
 };
 
 const SWATCH_SATURATION = 70;
@@ -34,6 +36,7 @@ export function ColourControls({
   onToneChange,
   onGestureEnd,
   onSelect,
+  onColourFromImage,
 }: Props) {
   // While a gesture is in progress the centre stays a flat colour. Swapping the
   // artwork on every frame of a drag would both flicker and pull thumbnails at
@@ -126,6 +129,8 @@ export function ColourControls({
           </button>
         )}
       </p>
+
+      <ColourFromImage onColour={onColourFromImage} />
     </div>
   );
 }
