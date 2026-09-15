@@ -8,6 +8,8 @@ type Props = {
   tone: number | null;
   onToneChange: (tone: number | null) => void;
   onGestureEnd: (next?: Partial<ViewState>) => void;
+  /** Overridden where the track means something other than browsing. */
+  label?: string;
 };
 
 /** Shown when no tone is chosen, so the thumb has somewhere neutral to sit. */
@@ -22,7 +24,7 @@ function trackGradient(hue: number | null): string {
   return `linear-gradient(to right, ${at(TONE_MIN)}, ${at(TONE_MIN + step)}, ${at(TONE_MIN + 2 * step)}, ${at(TONE_MIN + 3 * step)}, ${at(TONE_MAX)})`;
 }
 
-export function ToneSlider({ hue, tone, onToneChange, onGestureEnd }: Props) {
+export function ToneSlider({ hue, tone, onToneChange, onGestureEnd, label = 'Lightness' }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   // React maps onChange onto the DOM `input` event, which fires on every frame
@@ -53,7 +55,7 @@ export function ToneSlider({ hue, tone, onToneChange, onGestureEnd }: Props) {
       // Safari's cap of roughly 100 history writes per 30 seconds.
       onPointerUp={() => onGestureEnd()}
       onKeyUp={() => onGestureEnd()}
-      aria-label="Lightness"
+      aria-label={label}
       aria-valuetext={tone === null ? 'Any tone' : `Tone ${tone}, ${toneName(tone)}`}
       className="tone-range cursor-pointer"
       style={

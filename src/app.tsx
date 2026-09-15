@@ -5,6 +5,7 @@ import { useArtworksByHue } from './hooks/use-artworks-by-hue';
 import { ColourControls } from './components/colour-controls';
 import { ArtworkMasonryGrid } from './components/artwork-masonry-grid';
 import { ArtworkHueRing } from './components/artwork-hue-ring';
+import { ColourGames } from './components/colour-games';
 import {
   GalleryLoading,
   GalleryStatus,
@@ -16,7 +17,8 @@ import { useFavourites } from './hooks/use-favourites';
 import { useRevealOnScroll } from './hooks/use-reveal-on-scroll';
 import { useDetailOverlay } from './hooks/use-detail-overlay';
 import { useDocumentChrome } from './hooks/use-document-chrome';
-import { clampTone, type HueSelection } from './lib/color-math';
+import { useColourJump } from './hooks/use-colour-jump';
+import type { HueSelection } from './lib/color-math';
 import { ArtworkDetailOverlay } from './components/artwork-detail-overlay';
 
 export function App() {
@@ -41,9 +43,19 @@ export function App() {
   const asRing = hue === null && tone === null && !showingSaved && columns >= 4;
   const { selected, open, requestClose } = useDetailOverlay();
   const [needsReload, setNeedsReload] = useState(false);
-  const [pendingColour, setPendingColour] = useState<{ hue: number; lig: number } | null>(null);
+  const [playing, setPlaying] = useState(false);
 
   useDocumentChrome(hue);
+
+  const leaveSaved = useCallback(() => setShowingSaved(false), []);
+  const { browseColour, jumpToColour } = useColourJump({
+    selected,
+    requestClose,
+    setHue,
+    setTone,
+    pushHash,
+    onLeaveSaved: leaveSaved,
+  });
 
   const browseHue = useCallback(
     (next: HueSelection) => {
@@ -69,36 +81,6 @@ export function App() {
     [browseHue, commitHash],
   );
 
-  // A work's own colour is the way back to the wheel. Both axes are set, not
-  // just the hue: the swatch showed one colour, and hue alone would answer with
-  // that hue at every lightness.
-  const browseColour = useCallback(
-    (hue: number, lig: number) => {
-      setPendingColour({ hue, lig });
-      requestClose();
-    },
-    [requestClose],
-  );
-
-  const jumpToColour = useCallback(
-    (nextHue: HueSelection, lightness: number) => {
-      const tone = clampTone(lightness);
-      setShowingSaved(false);
-      setHue(nextHue);
-      setTone(tone);
-      pushHash({ hue: nextHue, tone });
-    },
-    [setHue, setTone, pushHash],
-  );
-
-  // Closing the overlay is a history.back(), which lands after this tick and
-  // would restore the URL this wrote. So the colour is applied only once the
-  // overlay is actually gone.
-  useEffect(() => {
-    if (!pendingColour || selected) return;
-    jumpToColour(pendingColour.hue, pendingColour.lig);
-    setPendingColour(null);
-  }, [pendingColour, selected, jumpToColour]);
 
   useEffect(() => {
     const onPreloadError = () => setNeedsReload(true);
@@ -132,6 +114,7 @@ export function App() {
           onGestureEnd={commitHash}
           onSelect={open}
           onColourFromImage={jumpToColour}
+          onPlay={() => setPlaying(true)}
         />
       </div>
 
@@ -142,12 +125,14 @@ export function App() {
           showingSaved={showingSaved}
           onToggle={() => setShowingSaved((v) => !v)}
         />
-        {imagesDown && !showingSaved && <ImagesUnavailableBanner />}
-        {status === 'loading' && !showingSaved && <GalleryLoading />}
+        {imagesDown && !showingSaved && !playing && <ImagesUnavailableBanner />}
+        {status === 'loading' && !showingSaved && !playing && <GalleryLoading />}
         {/* Reserves a viewport so the footer starts below the fold and the
             arriving grid cannot shift anything the reader can see. */}
         <div className="min-h-screen">
-          {asRing ? (
+          {playing ? (
+            <ColourGames onClose={() => setPlaying(false)} />
+          ) : asRing ? (
             <ArtworkHueRing items={items} onSelect={open} />
           ) : (
             <ArtworkMasonryGrid
@@ -158,8 +143,8 @@ export function App() {
               onImageLoad={noteImageLoad}
             />
           )}
-          {!asRing && <div ref={sentinelRef} className="h-px" />}
-          {!showingSaved && !asRing && (
+          {!asRing && !playing && <div ref={sentinelRef} className="h-px" />}
+          {!showingSaved && !asRing && !playing && (
             <GalleryStatus
               status={status}
               total={items.length}
