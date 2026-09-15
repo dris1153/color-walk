@@ -1,1 +1,1 @@
-{"generatedAt":"2026-09-14T17:26:37.380Z","total":12591,"entries":24360,"neutral":5013,"bySource":{"met":8646,"cma":3945},"byBucket":[724,3666,10883,6093,712,244,131,74,33,67,125,150,186,325,473,283,55,22,16,7,2,5,19,65],"dropped":{"validation":3610,"achromatic":0,"download":2}}
+{"generatedAt":"2026-09-15T02:42:03.077Z","total":12591,"entries":24360,"bySource":{"met":8646,"cma":3945},"byBucket":[724,3666,10883,6093,712,244,131,74,33,67,125,150,186,325,473,283,55,22,16,7,2,5,19,65],"dropped":{"validation":11244,"achromatic":5013,"download":0}}
