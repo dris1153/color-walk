@@ -1,6 +1,6 @@
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { getBuffer, head, pool, sleep } from './http-util.mjs';
+import { getBuffer, head, isAbort, pool, sleep } from './http-util.mjs';
 
 export const CACHE_DIR = path.join(import.meta.dirname, '.cache');
 const MANIFEST_PATH = path.join(CACHE_DIR, 'manifest.json');
@@ -34,7 +34,9 @@ const saveManifest = (m) => writeFile(MANIFEST_PATH, JSON.stringify(m));
  * Fills `.cache/{id}.jpg` and, for Met only, `item.bigBytes` via HEAD (CMA
  * reports it in the API). Resumable: an existing non-empty cache file is never
  * re-fetched, and HEAD results persist in the manifest. A stopped `control`
- * leaves the rest on disk for the next run rather than abandoning the index.
+ * leaves the rest on disk for the next run rather than abandoning the index,
+ * and aborts whatever is in flight: five workers once sat in SYN_SENT for an
+ * hour with 29 files to go, and the run could not end until they did.
  * Mutates `item.bigBytes`; returns the items whose thumbnail is on disk.
  */
 export async function downloadThumbnails(items, { control, log = console.log } = {}) {
@@ -55,20 +57,25 @@ export async function downloadThumbnails(items, { control, log = console.log } =
       skipped++;
     } else {
       try {
-        const buf = await getBuffer(item.thumb);
+        const fetching = getBuffer(item.thumb, { signal: control?.signal });
+        const buf = await (control ? control.track(fetching) : fetching);
         if (buf.length === 0) throw new Error('empty body');
         await writeFile(thumbPath(item.id), buf);
         downloaded++;
         ok.push(item);
         if (item.src === 'cma') await sleep(CMA_COURTESY_MS);
       } catch (err) {
-        failed++;
-        manifest.failed[item.id] = String(err?.message ?? err).slice(0, 200);
+        if (isAbort(err)) {
+          skipped++; // a pause, not a verdict: fetched next run
+        } else {
+          failed++;
+          manifest.failed[item.id] = String(err?.message ?? err).slice(0, 200);
+        }
       }
     }
     const seen = downloaded + cached + failed + skipped;
     if (seen % 250 === 0) log(`thumbs: ${seen}/${items.length}`);
-    await control?.progress({ stage: 'thumbnails', done: seen, total: items.length });
+    await control?.progress({ stage: 'thumbnails', done: seen, total: items.length, network: downloaded });
   });
   if (skipped) log(`thumbs: ${control.reason}, ${skipped} left for the next run`);
 
@@ -77,8 +84,20 @@ export async function downloadThumbnails(items, { control, log = console.log } =
     : ok.filter((item) => item.src === 'met' && !(item.id in manifest.bigBytes));
   log(`thumbs: ${downloaded} downloaded, ${cached} cached, ${failed} failed; ${needHead.length} HEAD`);
 
+  // Its own stage in the progress file: 45,942 HEADs at five a time is the
+  // longest stretch of a warm run, and without a heartbeat here status called
+  // it stalled for two hours.
+  let measured = 0;
   await pool(needHead, CONCURRENCY, async (item) => {
-    manifest.bigBytes[item.id] = await head(item.big);
+    if (control?.stopped) return; // measured next run
+    try {
+      const asking = head(item.big, { signal: control?.signal });
+      manifest.bigBytes[item.id] = await (control ? control.track(asking) : asking);
+    } catch (err) {
+      if (!isAbort(err)) throw err;
+    }
+    measured++;
+    await control?.progress({ stage: 'sizes', done: measured, total: needHead.length, network: measured });
   });
   for (const item of ok) {
     if (item.src === 'met') item.bigBytes = manifest.bigBytes[item.id] ?? null;

@@ -124,9 +124,21 @@ npm run build:index -- --met-departments=11,6,14,21 --cma-types=all --minutes=12
 npm run crawl:status        # from a second terminal, at any time
 ```
 
-- **Ctrl+C pauses.** The stage finishes the item in flight, writes the index
-  from everything cached so far, and prints the command to resume. A second
-  Ctrl+C exits at once, at the cost of the one request in flight.
+- **Ctrl+C pauses, at once.** Every request in flight is aborted, the index is
+  written from everything cached so far, and the command to resume is printed.
+  The aborted items are simply fetched next run; nothing is recorded as failed.
+- **No request waits forever.** JSON requests time out at 30 s and images at
+  60 s, then retry like any other transient failure. The Met's WAF drops
+  connections outright when it throttles; before this, a worker could sit in
+  `SYN_SENT` for an hour and the run could not end.
+- **One crawl at a time.** `.cache/crawl.lock` names the running pid; a second
+  `build:index` exits with code 2 and says who holds it. A lock whose owner is
+  dead is taken over.
+- **Status you can trust.** `npm run crawl:status` reads a heartbeat written
+  every 5 s, so it can tell you `running`, `STALLED` (requests in flight but
+  nothing landing), `SILENT` (process alive, heartbeat stopped) or
+  `NOT RUNNING`, with the rate over the network only and the last three log
+  lines. The full log is in `.cache/crawl.log`.
 - **`--minutes=N` bounds a run** the same way, so an unattended evening session
   stops on its own with a usable index.
 - **Every run rewrites `public/index/`** from the whole cache, not just what it

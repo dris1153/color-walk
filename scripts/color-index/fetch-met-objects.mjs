@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { getJson, sleep } from './http-util.mjs';
+import { getJson, isAbort, sleep } from './http-util.mjs';
 import { CACHE_DIR } from './download-thumbnails.mjs';
 import { appendRecord, readIds } from './jsonl-cache.mjs';
 
@@ -52,7 +52,13 @@ async function searchDepartment(departmentId, log, control) {
   const ids = [];
   for (let offset = 0; ; offset += SEARCH_PAGE) {
     if (control?.stopped) return { ids, complete: false };
-    const page = await getJson(searchUrl(departmentId, offset));
+    let page;
+    try {
+      page = await getJson(searchUrl(departmentId, offset), { signal: control?.signal });
+    } catch (err) {
+      if (isAbort(err)) return { ids, complete: false }; // a pause; not cached as complete
+      throw err;
+    }
     const batch = Array.isArray(page?.objectIDs) ? page.objectIDs : [];
     ids.push(...batch);
     await control?.progress({ stage: `met search ${departmentId}`, done: ids.length, total: page?.total ?? 0 });
@@ -70,8 +76,8 @@ async function searchDepartment(departmentId, log, control) {
  * 3-15% of a department, and that waste is the price of the ids search cannot
  * reach.
  */
-async function departmentObjectIds(departmentId, log) {
-  const page = await getJson(departmentUrl(departmentId));
+async function departmentObjectIds(departmentId, log, control) {
+  const page = await getJson(departmentUrl(departmentId), { signal: control?.signal });
   const ids = Array.isArray(page?.objectIDs) ? page.objectIDs : [];
   log(`met: department ${departmentId} lists ${ids.length} objects`);
   return ids;
@@ -107,7 +113,13 @@ async function collectIds(departments, { log, control, refreshIds }) {
     found.push(...result.ids);
     complete &&= result.complete;
     if (control?.stopped) break;
-    found.push(...(await departmentObjectIds(departmentId, log)));
+    try {
+      found.push(...(await departmentObjectIds(departmentId, log, control)));
+    } catch (err) {
+      if (!isAbort(err)) throw err;
+      complete = false;
+      break;
+    }
     await sleep(OBJECT_DELAY_MS);
   }
   const ids = [...new Set(found)].filter((id) => Number.isInteger(id) && id > 0);
@@ -142,18 +154,21 @@ export async function fetchMetObjects({
   let done = 0;
   let gone = 0;
   let cooldowns = 0;
+  const stopped = () => {
+    log(`met: ${control.reason} at ${done}/${missing.length}`);
+    return { fetched: done, gone, remaining: missing.length - done, stopped: true };
+  };
 
   for (const id of missing) {
-    if (control?.stopped) {
-      log(`met: ${control.reason} at ${done}/${missing.length}`);
-      return { fetched: done, gone, remaining: missing.length - done, stopped: true };
-    }
+    if (control?.stopped) return stopped();
     let settled = false;
     while (!settled) {
       try {
-        await appendRecord(MET_CACHE, { id, o: await getJson(objectUrl(id), { retries: 1 }) });
+        const o = await getJson(objectUrl(id), { retries: 1, signal: control?.signal });
+        await appendRecord(MET_CACHE, { id, o });
         settled = true;
       } catch (err) {
+        if (isAbort(err)) return stopped(); // a pause, not a verdict: asked for again next run
         if (err?.status !== 403) {
           await appendRecord(MET_CACHE, { id, o: null }); // 404 and friends: never ask again
           gone++;
@@ -169,7 +184,7 @@ export async function fetchMetObjects({
       }
     }
     done++;
-    await control?.progress({ stage: 'met objects', done, total: missing.length });
+    await control?.progress({ stage: 'met objects', done, total: missing.length, network: done });
     await sleep(OBJECT_DELAY_MS);
   }
 

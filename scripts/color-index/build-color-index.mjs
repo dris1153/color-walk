@@ -2,7 +2,7 @@
 import os from 'node:os';
 import path from 'node:path';
 import { pool } from './http-util.mjs';
-import { createControl } from './crawl-control.mjs';
+import { acquireLock, createControl } from './crawl-control.mjs';
 import { readRecords } from './jsonl-cache.mjs';
 import { DEFAULT_MET_DEPARTMENTS, MET_CACHE, fetchMetObjects } from './fetch-met-objects.mjs';
 import { CMA_CACHE, DEFAULT_CMA_TYPES, fetchCmaArtworks } from './fetch-cma-artworks.mjs';
@@ -14,7 +14,7 @@ import { writeBucketFiles } from './write-bucket-files.mjs';
 
 const OUT_DIR = path.join(import.meta.dirname, '..', '..', 'public', 'index');
 const started = Date.now();
-const log = (msg) => {
+const stamp = (msg) => {
   const s = String(Math.round((Date.now() - started) / 1000)).padStart(4);
   console.log(`[${s}s] ${msg}`);
 };
@@ -71,7 +71,7 @@ async function normalizeAll({ source, limit }) {
   return { items: [...byId.values()], dropped };
 }
 
-async function colorizeAll(items) {
+async function colorizeAll(items, log) {
   const width = Math.max(2, os.availableParallelism?.() ?? 4);
   let done = 0;
   let decodeFailed = 0;
@@ -102,8 +102,12 @@ async function colorizeAll(items) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const command = ['npm run build:index --', ...process.argv.slice(2)].join(' ');
-  const control = createControl({ minutes: args.minutes, command, log: console.log });
-  log(`build:index source=${args.source} limit=${args.limit} minutes=${args.minutes || 'unbounded'}`);
+  // One crawl at a time: two of them raced on progress.json and public/index, twice.
+  const releaseLock = await acquireLock();
+  const control = createControl({ minutes: args.minutes, command, log: stamp });
+  // Everything below logs through the control, so it also lands in crawl.log.
+  const log = control.log;
+  log(`build:index source=${args.source} limit=${args.limit} minutes=${args.minutes || 'unbounded'} pid=${process.pid}`);
   log(`met departments ${args.metDepartments.join(',')}, cma types ${args.cmaTypes.join(',')}`);
   if (args.source !== 'both' || args.limit !== Infinity) {
     log('WARNING: partial run - public/index will not be a complete index');
@@ -129,7 +133,7 @@ async function main() {
     const downloaded = await downloadThumbnails(normalized.items, { control, log });
     log(`thumbnails ready for ${downloaded.items.length}`);
 
-    const colored = await colorizeAll(downloaded.items);
+    const colored = await colorizeAll(downloaded.items, log);
     log(`coloured ${colored.items.length}, ${colored.neutrals.length} monochrome, ${colored.decodeFailed} undecodable`);
 
     // Written on every run, complete or not, so the site always reflects the
@@ -158,10 +162,22 @@ async function main() {
     console.log(JSON.stringify(meta, null, 2));
   } finally {
     control.release();
+    await releaseLock();
   }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exitCode = 1;
+// A crawl that has finished must not linger on a forgotten socket, and one that
+// fails must say so where it can be read back: both go through here.
+process.on('unhandledRejection', (err) => {
+  console.error('unhandled rejection:', err);
+  process.exit(1);
 });
+
+main().then(
+  () => process.exit(0),
+  (err) => {
+    const message = String(err?.message ?? err);
+    console.error(message);
+    process.exit(/another crawl is running/.test(message) ? 2 : 1);
+  },
+);

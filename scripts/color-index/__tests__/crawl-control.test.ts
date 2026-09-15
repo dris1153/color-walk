@@ -1,49 +1,60 @@
 import { describe, expect, it } from 'vitest';
+import { tmpdir } from 'node:os';
 import { createControl } from '../crawl-control.mjs';
 
 const quiet = () => {};
+/** Its own directory: a control made here must never write "pausing" into the
+ *  real crawl.log or a heartbeat into the real progress.json. */
+const SCRATCH = tmpdir();
+const control = (opts: Record<string, unknown> = {}) => createControl({ log: quiet, dir: SCRATCH, ...opts });
 
 describe('crawl control', () => {
   it('runs unbounded when no --minutes is given', () => {
-    const control = createControl({ log: quiet });
-    expect(control.stopped).toBe(false);
-    control.release();
+    const c = control();
+    expect(c.stopped).toBe(false);
+    c.release();
   });
 
   it('stops once the time limit passes', async () => {
-    const control = createControl({ minutes: 1 / 60_000, log: quiet }); // 1ms
+    const c = control({ minutes: 1 / 60_000 }); // 1ms
     try {
-      expect(control.stopped).toBe(false);
+      expect(c.stopped).toBe(false);
       await new Promise((r) => setTimeout(r, 20));
-      expect(control.stopped).toBe(true);
-      expect(control.reason).toBe('reached the --minutes limit');
+      expect(c.stopped).toBe(true);
+      expect(c.reason).toBe('reached the --minutes limit');
     } finally {
       // Always, or an orphaned SIGINT handler makes the next test exit the run.
-      control.release();
+      c.release();
     }
   });
 
-  it('stops on SIGINT and says so', async () => {
-    const control = createControl({ log: quiet });
-    process.emit('SIGINT');
-    expect(control.stopped).toBe(true);
-    expect(control.reason).toBe('paused with Ctrl+C');
-    control.release();
+  it('stops on SIGINT and says so', () => {
+    const c = control();
+    try {
+      process.emit('SIGINT');
+      expect(c.stopped).toBe(true);
+      expect(c.reason).toBe('paused with Ctrl+C');
+    } finally {
+      c.release();
+    }
   });
 
   it('cuts a long wait short once paused, so a cooldown cannot swallow a Ctrl+C', async () => {
-    const control = createControl({ log: quiet });
-    const started = Date.now();
-    const waiting = control.wait(90_000);
-    process.emit('SIGINT');
-    await waiting;
-    expect(Date.now() - started).toBeLessThan(2000);
-    control.release();
+    const c = control();
+    try {
+      const started = Date.now();
+      const waiting = c.wait(90_000);
+      process.emit('SIGINT');
+      await waiting;
+      expect(Date.now() - started).toBeLessThan(2000);
+    } finally {
+      c.release();
+    }
   });
 
   it('removes its handler on release, so a run cannot leave one behind', () => {
     const before = process.listenerCount('SIGINT');
-    createControl({ log: quiet }).release();
+    control().release();
     expect(process.listenerCount('SIGINT')).toBe(before);
   });
 });

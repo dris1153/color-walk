@@ -1,6 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { getJson, sleep } from './http-util.mjs';
+import { getJson, isAbort, sleep } from './http-util.mjs';
 import { CACHE_DIR } from './download-thumbnails.mjs';
 import { appendRecord, readIds } from './jsonl-cache.mjs';
 
@@ -50,17 +50,26 @@ export async function fetchCmaArtworks({
   const known = await readIds(CMA_CACHE);
   const before = known.size;
   let added = 0;
+  let pagesFetched = 0;
+  const stopped = () => {
+    log(`cma: ${control.reason} after ${added} new records`);
+    return { added, cached: known.size, stopped: true };
+  };
 
   for (const type of types) {
     let total = Infinity;
     for (let pass = 1; pass <= MAX_PASSES; pass++) {
       const seen = new Set();
       for (let skip = 0; before + added < limit; skip += PAGE_SIZE) {
-        if (control?.stopped) {
-          log(`cma: ${control.reason} after ${added} new records`);
-          return { added, cached: known.size, stopped: true };
+        if (control?.stopped) return stopped();
+        let res;
+        try {
+          res = await getJson(pageUrl(type, skip), { signal: control?.signal });
+        } catch (err) {
+          if (isAbort(err)) return stopped(); // a pause, not a failure
+          throw err;
         }
-        const res = await getJson(pageUrl(type, skip));
+        pagesFetched++;
         const data = Array.isArray(res?.data) ? res.data : [];
         if (Number.isFinite(res?.info?.total)) total = res.info.total;
         for (const record of data) {
@@ -72,7 +81,7 @@ export async function fetchCmaArtworks({
           added++;
         }
         log(`cma: ${type} pass ${pass} skip=${skip}, ${added} new, ${known.size} cached`);
-        await control?.progress({ stage: `cma ${type}`, done: known.size, total });
+        await control?.progress({ stage: `cma ${type}`, done: known.size, total, network: pagesFetched });
         if (data.length < PAGE_SIZE) break;
         await sleep(COURTESY_MS);
       }
