@@ -6,6 +6,7 @@ import { ColourControls } from './components/colour-controls';
 import { ArtworkMasonryGrid } from './components/artwork-masonry-grid';
 import { ArtworkHueRing } from './components/artwork-hue-ring';
 import { ColourGames } from './components/colour-games';
+import { CompositionSearch } from './components/composition-search';
 import { ColourWalk } from './components/colour-walk';
 import { CollectionRing } from './components/collection-ring';
 import { useWalkState } from './hooks/use-walk-state';
@@ -46,8 +47,10 @@ export function App() {
   const asRing = hue === null && tone === null && !showingSaved && columns >= 4;
   const { selected, open, requestClose } = useDetailOverlay();
   const [needsReload, setNeedsReload] = useState(false);
-  const [playing, setPlaying] = useState(false);
+  // Play and compose are local; the walk keeps its own state because it lives in the URL.
+  const [activity, setActivity] = useState<'play' | 'compose' | null>(null);
   const walk = useWalkState({ hue, tone });
+  const busy = walk.walking || activity !== null;
 
   useDocumentChrome(hue);
 
@@ -85,7 +88,6 @@ export function App() {
     [browseHue, commitHash],
   );
 
-
   useEffect(() => {
     const onPreloadError = () => setNeedsReload(true);
     window.addEventListener('vite:preloadError', onPreloadError as EventListener);
@@ -118,7 +120,8 @@ export function App() {
           onGestureEnd={commitHash}
           onSelect={open}
           onColourFromImage={jumpToColour}
-          onPlay={() => setPlaying(true)}
+          onPlay={() => setActivity('play')}
+          onCompose={() => setActivity('compose')}
           onWalk={walk.plan}
         />
       </div>
@@ -130,8 +133,8 @@ export function App() {
           showingSaved={showingSaved}
           onToggle={() => setShowingSaved((v) => !v)}
         />
-        {imagesDown && !showingSaved && !playing && !walk.walking && <ImagesUnavailableBanner />}
-        {status === 'loading' && !showingSaved && !playing && !walk.walking && <GalleryLoading />}
+        {imagesDown && !showingSaved && !busy && <ImagesUnavailableBanner />}
+        {status === 'loading' && !showingSaved && !busy && <GalleryLoading />}
         {/* Reserves a viewport so the footer starts below the fold and the
             arriving grid cannot shift anything the reader can see. */}
         <div className="min-h-screen">
@@ -143,8 +146,10 @@ export function App() {
               onSelect={open}
               onClose={walk.end}
             />
-          ) : playing ? (
-            <ColourGames onClose={() => setPlaying(false)} />
+          ) : activity === 'play' ? (
+            <ColourGames onClose={() => setActivity(null)} />
+          ) : activity === 'compose' ? (
+            <CompositionSearch onOpen={open} onClose={() => setActivity(null)} />
           ) : asRing ? (
             <ArtworkHueRing items={items} onSelect={open} />
           ) : (
@@ -159,8 +164,8 @@ export function App() {
               />
             </>
           )}
-          {!asRing && !playing && !walk.walking && <div ref={sentinelRef} className="h-px" />}
-          {!showingSaved && !asRing && !playing && !walk.walking && (
+          {!asRing && !busy && <div ref={sentinelRef} className="h-px" />}
+          {!showingSaved && !asRing && !busy && (
             <GalleryStatus
               status={status}
               total={items.length}

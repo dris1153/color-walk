@@ -1,0 +1,85 @@
+import { BUCKET_COUNT, hueToBucket } from './write-bucket-files.mjs';
+import { spineHueCell, spineToneBand } from './write-spine-file.mjs';
+
+/**
+ * The files beside the buckets: twins, the composition map and the spine. Each
+ * points back into the bucket pages, so each is checked against them rather
+ * than only against itself.
+ */
+export async function verifySideFiles({ read, meta, fail, hostOk, ALLOWED_IMAGE_HOSTS, twinRefs, bucketOnlySecondary }) {
+  // Twins: each must point at a real entry, in the bucket and page it names, at
+  // the other museum. A wrong page would cost the reader a fetch for nothing.
+  let twinCount = 0;
+  for (const [ref, item] of twinRefs) {
+    const [bucket, page] = ref;
+    const file = page === 0
+      ? await read(`bucket-${String(bucket).padStart(2, '0')}.json`)
+      : await read(`bucket-${String(bucket).padStart(2, '0')}-${page}.json`).catch(() => null);
+    const found = file?.items.find((i) => i.id === item.twin.id);
+    if (!found) fail(`${item.id}: twin ${item.twin.id} is not on bucket ${bucket} page ${page}`);
+    else if (found.src === item.src) fail(`${item.id}: twin ${item.twin.id} is at the same museum`);
+    twinCount++;
+  }
+
+  // Composition: every entry must be openable - its bucket and page must hold it -
+  // and its nine cells must be cells.
+  const composition = await read('composition.json');
+  if (composition.count !== composition.items.length) fail('composition.json: count disagrees with items');
+  if (composition.count !== meta.composition) fail('composition.json: count disagrees with meta.composition');
+  const pageCache = new Map();
+  const pageOf = async (bucket, page) => {
+    const key = `${bucket}:${page}`;
+    if (!pageCache.has(key)) {
+      const name = page === 0
+        ? `bucket-${String(bucket).padStart(2, '0')}.json`
+        : `bucket-${String(bucket).padStart(2, '0')}-${page}.json`;
+      pageCache.set(key, await read(name).catch(() => null));
+    }
+    return pageCache.get(key);
+  };
+  for (const entry of composition.items) {
+    if (!Array.isArray(entry.c) || entry.c.length !== 9) fail(`composition: ${entry.id} does not have nine cells`);
+    else if (!entry.c.every((c) => c === null || (Array.isArray(c) && c.length === 2 && c[0] >= 0 && c[0] < 360))) {
+      fail(`composition: ${entry.id} has a malformed cell`);
+    }
+    if (!hostOk(entry.thumb, ALLOWED_IMAGE_HOSTS)) fail(`composition: ${entry.id} thumb host not allowed`);
+    const page = await pageOf(entry.bucket, entry.page);
+    if (!page?.items.some((i) => i.id === entry.id)) {
+      fail(`composition: ${entry.id} is not on bucket ${entry.bucket} page ${entry.page}`);
+    }
+  }
+
+  // The spine: one small file that has to reach every corner, because the walk
+  // and the games cannot fetch a bucket per hue.
+  const spine = await read('spine.json');
+  if (spine.count !== spine.items.length) fail('spine.json: count disagrees with items length');
+  if (spine.count !== meta.spine) fail('spine.json: count disagrees with meta.spine');
+  const spineIds = new Set();
+  const spineCells = new Set();
+  let lastHue = -Infinity;
+  let seenNeutral = false;
+  for (const item of spine.items) {
+    checkItem(item, null, fail);
+    if (spineIds.has(item.id)) fail(`spine.json: ${item.id} appears twice`);
+    spineIds.add(item.id);
+    if (item.sat === 0) {
+      seenNeutral = true;
+      continue;
+    }
+    // Neutrals have no hue, so they sit at the end rather than sorted among them.
+    if (seenNeutral) fail('spine.json: a coloured work comes after the neutral ones');
+    if (item.hue < lastHue) fail('spine.json: coloured items not ordered by hue');
+    lastHue = item.hue;
+    const cell = `${spineHueCell(item.hue)}:${spineToneBand(item.lig)}`;
+    if (spineCells.has(cell)) fail(`spine.json: two works share cell ${cell}`);
+    spineCells.add(cell);
+  }
+  // Every hue the index actually holds must be reachable from the spine alone.
+  const spineBuckets = new Set(spine.items.filter((i) => i.sat > 0).map((i) => hueToBucket(i.hue)));
+  for (let b = 0; b < BUCKET_COUNT; b++) {
+    if (meta.byBucket[b] > 0 && !spineBuckets.has(b) && !bucketOnlySecondary.has(b)) {
+      fail(`spine.json: hue bucket ${b} holds ${meta.byBucket[b]} entries but no spine work`);
+    }
+  }
+  return { twinCount, composition, spine, spineBuckets };
+}

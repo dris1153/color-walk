@@ -19,7 +19,7 @@ const BUCKET_WIDTH = 360 / BUCKETS;
 const DEG = Math.PI / 180;
 
 const wrap360 = (h) => ((h % 360) + 360) % 360;
-function rgbToHsl(r, g, b) {
+export function rgbToHsl(r, g, b) {
   const rn = r / 255;
   const gn = g / 255;
   const bn = b / 255;

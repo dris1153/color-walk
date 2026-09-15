@@ -9,6 +9,7 @@ import { CMA_CACHE, DEFAULT_CMA_TYPES, fetchCmaArtworks } from './fetch-cma-artw
 import { normalizeArtwork } from './normalize-artwork.mjs';
 import { downloadThumbnails, readCachedThumb } from './download-thumbnails.mjs';
 import { extractDominantColor } from './extract-dominant-color.mjs';
+import { extractComposition } from './extract-composition.mjs';
 import { writeBucketFiles } from './write-bucket-files.mjs';
 
 const OUT_DIR = path.join(import.meta.dirname, '..', '..', 'public', 'index');
@@ -78,8 +79,11 @@ async function colorizeAll(items) {
   const colored = await pool(items, width, async (item) => {
     let result = null;
     try {
-      const color = await extractDominantColor(await readCachedThumb(item.id));
-      if (color) result = { ...item, ...color };
+      const buf = await readCachedThumb(item.id);
+      const color = await extractDominantColor(buf);
+      // The map rides along only until the composition file is written; the
+      // bucket writer drops it so the index does not carry nine cells per work.
+      if (color) result = { ...item, ...color, c: color.neutral ? null : await extractComposition(buf) };
     } catch {
       decodeFailed++;
     }

@@ -3,6 +3,7 @@ import path from 'node:path';
 import { hslToHex } from './hsl-to-hex.mjs';
 import { writeSpineFile } from './write-spine-file.mjs';
 import { attachTwins, findTwins } from './write-twins.mjs';
+import { writeCompositionFile } from './write-composition-file.mjs';
 
 export const BUCKET_COUNT = 24;
 export const BUCKET_WIDTH = 360 / BUCKET_COUNT;
@@ -123,6 +124,19 @@ export async function writeBucketFiles(items, outDir, dropped = {}, neutrals = [
   const buckets = buildBuckets(items);
   const twins = findTwins(buckets);
   attachTwins(buckets, twins);
+  // Where each work's primary entry landed, so a search result can be opened
+  // with one page fetch. Then the map comes off the entries: it belongs to the
+  // composition file, not to every bucket page.
+  const located = new Map();
+  for (const b of buckets) {
+    b.items.forEach((entry, index) => {
+      if (!located.has(entry.id) && !(entry.p ?? []).some((c) => c[3] > entry.pct)) {
+        located.set(entry.id, { bucket: b.bucket, page: Math.floor(index / PAGE_SIZE) });
+      }
+    });
+  }
+  const composition = await writeCompositionFile(items, (id) => located.get(id), outDir);
+  for (const b of buckets) for (const entry of b.items) delete entry.c;
   const all = buildAll(buckets);
 
   for (const b of buckets) {
@@ -153,6 +167,7 @@ export async function writeBucketFiles(items, outDir, dropped = {}, neutrals = [
     neutral,
     spine,
     twins: twins.size,
+    composition,
     bySource: {
       met: items.filter((i) => i.src === 'met').length,
       cma: items.filter((i) => i.src === 'cma').length,
