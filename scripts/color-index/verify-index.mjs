@@ -4,6 +4,7 @@ import path from 'node:path';
 import { ALLOWED_IMAGE_HOSTS, ALLOWED_PAGE_HOSTS } from './normalize-artwork.mjs';
 import { BUCKET_COUNT, hueToBucket, pageCount } from './write-bucket-files.mjs';
 import { MAX_PALETTE } from './extract-dominant-color.mjs';
+import { spineHueCell, spineToneBand } from './write-spine-file.mjs';
 
 const INDEX_DIR = path.join(import.meta.dirname, '..', '..', 'public', 'index');
 const MIN_TOTAL = 5000;
@@ -44,6 +45,10 @@ const fail = (msg) => {
   if (errors.length < 20) errors.push(msg);
 };
 
+// A bucket can hold nothing but secondary-colour copies, and those works are
+// filed in the spine under the hue they actually lead with.
+const bucketOnlySecondary = new Set();
+
 const meta = await read('meta.json');
 let counted = 0;
 const works = new Set();
@@ -57,22 +62,25 @@ for (let b = 0; b < BUCKET_COUNT; b++) {
 
   // Walk every page, so a bucket cannot quietly lose its overflow.
   let seen = 0;
+  // Works whose own strongest colour is this hue, as opposed to copies filed
+  // here for a colour they merely also hold.
+  let leadsHere = 0;
   let previousPct = Infinity;
   for (let page = 0; page < first.pages; page++) {
     const file = page === 0 ? first : await read(`bucket-${pad}-${page}.json`);
     for (const item of file.items) {
       checkItem(item, b, fail);
       works.add(item.id);
+      if (!item.p?.some((e) => e[3] > item.pct)) leadsHere++;
       if (item.pct > previousPct) fail(`bucket ${b}: items not sorted by pct across page ${page}`);
       previousPct = item.pct;
       seen++;
     }
   }
   if (seen !== first.count) fail(`bucket ${b}: pages hold ${seen} items, count says ${first.count}`);
+  if (seen > 0 && leadsHere === 0) bucketOnlySecondary.add(b);
   counted += seen;
 }
-
-// The monochrome index: no hue to check, but a tone and a page count.
 const neutralFirst = await read('neutral.json');
 if (neutralFirst.count !== meta.neutral) fail(`neutral.json: count disagrees with meta.neutral`);
 if (neutralFirst.pages !== pageCount(neutralFirst.count)) fail('neutral.json: wrong page count');
@@ -95,6 +103,39 @@ for (let page = 0; page < neutralFirst.pages; page++) {
 }
 if (neutralSeen !== neutralFirst.count) {
   fail(`neutral pages hold ${neutralSeen} items, count says ${neutralFirst.count}`);
+}
+
+// The spine: one small file that has to reach every corner, because the walk
+// and the games cannot fetch a bucket per hue.
+const spine = await read('spine.json');
+if (spine.count !== spine.items.length) fail('spine.json: count disagrees with items length');
+if (spine.count !== meta.spine) fail('spine.json: count disagrees with meta.spine');
+const spineIds = new Set();
+const spineCells = new Set();
+let lastHue = -Infinity;
+let seenNeutral = false;
+for (const item of spine.items) {
+  checkItem(item, null, fail);
+  if (spineIds.has(item.id)) fail(`spine.json: ${item.id} appears twice`);
+  spineIds.add(item.id);
+  if (item.sat === 0) {
+    seenNeutral = true;
+    continue;
+  }
+  // Neutrals have no hue, so they sit at the end rather than sorted among them.
+  if (seenNeutral) fail('spine.json: a coloured work comes after the neutral ones');
+  if (item.hue < lastHue) fail('spine.json: coloured items not ordered by hue');
+  lastHue = item.hue;
+  const cell = `${spineHueCell(item.hue)}:${spineToneBand(item.lig)}`;
+  if (spineCells.has(cell)) fail(`spine.json: two works share cell ${cell}`);
+  spineCells.add(cell);
+}
+// Every hue the index actually holds must be reachable from the spine alone.
+const spineBuckets = new Set(spine.items.filter((i) => i.sat > 0).map((i) => hueToBucket(i.hue)));
+for (let b = 0; b < BUCKET_COUNT; b++) {
+  if (meta.byBucket[b] > 0 && !spineBuckets.has(b) && !bucketOnlySecondary.has(b)) {
+    fail(`spine.json: hue bucket ${b} holds ${meta.byBucket[b]} entries but no spine work`);
+  }
 }
 
 const all = await read('all.json');
@@ -122,6 +163,7 @@ console.log(
   `checked ${works.size} works in ${counted} places across ${BUCKET_COUNT} buckets + all.json`,
 );
 console.log(`plus ${neutralSeen} monochrome works across ${neutralFirst.pages} pages`);
+console.log(`spine holds ${spine.count} works reaching ${spineBuckets.size} hue buckets`);
 console.log(`bySource ${JSON.stringify(meta.bySource)}  dropped ${JSON.stringify(meta.dropped)}`);
 if (errors.length > 0) {
   console.error(`FAILED (${errors.length} shown):`);

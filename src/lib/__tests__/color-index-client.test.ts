@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { hasMorePages, loadBucketPage, loadBucketNear, type Item } from '../color-index-client';
+import { hasMorePages, loadBucketPage, loadBucketNear, loadSpine, type Item } from '../color-index-client';
 
 const item = (id: string): Item => ({
   id,
@@ -79,5 +79,22 @@ describe('paged bucket files', () => {
     await loadBucketPage(7, 1);
     await loadBucketPage(7, 1);
     expect(seen.filter((u) => u === '/index/bucket-07-1.json')).toHaveLength(1);
+  });
+});
+
+describe('the spine', () => {
+  it('fetches once and keeps it for the session', async () => {
+    const seen = serve({ '/index/spine.json': { count: 60, items: full('s') } });
+    const first = await loadSpine();
+    const second = await loadSpine();
+    expect(first).toBe(second);
+    expect(seen.filter((u) => u === '/index/spine.json')).toHaveLength(1);
+  });
+
+  it('drops anything in it that does not survive validation', async () => {
+    vi.resetModules();
+    const fresh = await import('../color-index-client');
+    serve({ '/index/spine.json': { count: 2, items: [item('ok'), { id: 'bad', hue: 999 }] } });
+    expect((await fresh.loadSpine()).map((i) => i.id)).toEqual(['ok']);
   });
 });

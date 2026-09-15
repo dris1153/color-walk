@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { hslToHex } from './hsl-to-hex.mjs';
+import { writeSpineFile } from './write-spine-file.mjs';
 
 export const BUCKET_COUNT = 24;
 export const BUCKET_WIDTH = 360 / BUCKET_COUNT;
@@ -138,6 +139,7 @@ export async function writeBucketFiles(items, outDir, dropped = {}, neutrals = [
   // Deliberately not in all.json: the landing view is a walk through colour,
   // and greys would only dilute it.
   const neutral = await writeNeutralFiles(neutrals, outDir);
+  const spine = await writeSpineFile(items, neutrals, outDir);
 
   const meta = {
     generatedAt: new Date().toISOString(),
@@ -146,6 +148,7 @@ export async function writeBucketFiles(items, outDir, dropped = {}, neutrals = [
     total: items.length,
     entries: buckets.reduce((n, b) => n + b.count, 0),
     neutral,
+    spine,
     bySource: {
       met: items.filter((i) => i.src === 'met').length,
       cma: items.filter((i) => i.src === 'cma').length,

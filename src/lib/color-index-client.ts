@@ -149,3 +149,29 @@ export function hasMorePages(bucket: number | null | 'grey', loaded: number): bo
 export function loadBucketPage(bucket: number | 'grey', page: number): Promise<Item[]> {
   return loadOneBucket(bucket, page);
 }
+
+let spine: Promise<Item[]> | null = null;
+
+/**
+ * Every corner of the collection in one ~12 kB file. The bucket files are
+ * organised for browsing one hue at a time, so anything that has to move across
+ * hues would otherwise fetch a dozen of them. Cached for the session: it is one
+ * request, and nothing in it changes until the index is rebuilt.
+ */
+export function loadSpine(): Promise<Item[]> {
+  spine ??= fetch('/index/spine.json')
+    .then((res) => {
+      if (!res.ok) throw new Error('index-load-failed');
+      return res.json();
+    })
+    .then((data: unknown) => {
+      const raw = (data as { items?: unknown })?.items;
+      if (!Array.isArray(raw)) throw new Error('index-load-failed');
+      return raw.filter(isItem);
+    })
+    .catch((err: unknown) => {
+      spine = null; // never cache a failure, or a retry could not work
+      throw err;
+    });
+  return spine;
+}
