@@ -1,71 +1,16 @@
-import { bucketFileUrl, isAllowedImageUrl } from './image-url';
+import { bucketFileUrl } from './image-url';
 import { BUCKET_COUNT } from './color-math';
+import { isItem, type Item, type Twin } from './index-item';
 
-/** A colour the work also holds: [hue, sat, lig, share]. `hex` is derived with
- *  hslToHex rather than stored, which is both smaller and safe by construction. */
-export type PaletteEntry = readonly [number, number, number, number];
-
-export type Item = {
-  id: string;
-  src: 'met' | 'cma';
-  t: string;
-  a: string;
-  d: string;
-  w: number;
-  h: number;
-  thumb: string;
-  big: string;
-  bigBytes: number | null;
-  hue: number;
-  sat: number;
-  lig: number;
-  hex: string;
-  pct: number;
-  page: string;
-  credit: string;
-  p?: PaletteEntry[];
-};
+export { isItem, type Item, type PaletteEntry, type Twin } from './index-item';
 
 /** One reveal window. Below this a hue is padded from neighbouring buckets. */
 export const MIN_ITEMS = 60;
 /** Past half the wheel a work is no longer "this colour" by any reading. */
 const MAX_RINGS = 11;
 
-const HEX = /^#[0-9a-f]{6}$/i;
-
-const isPalette = (x: unknown): x is PaletteEntry[] =>
-  Array.isArray(x) &&
-  x.every(
-    (e) =>
-      Array.isArray(e) &&
-      e.length === 4 &&
-      e.every((n) => typeof n === 'number' && Number.isFinite(n)) &&
-      e[0]! >= 0 &&
-      e[0]! < 360,
-  );
 const bucketCache = new Map<string, Item[]>();
 const inflight = new Map<string, Promise<Item[]>>();
-
-export function isItem(x: unknown): x is Item {
-  if (typeof x !== 'object' || x === null) return false;
-  const i = x as Record<string, unknown>;
-  return (
-    typeof i.id === 'string' &&
-    typeof i.thumb === 'string' &&
-    typeof i.hue === 'number' &&
-    i.hue >= 0 &&
-    i.hue < 360 &&
-    typeof i.w === 'number' &&
-    i.w > 0 &&
-    typeof i.h === 'number' &&
-    i.h > 0 &&
-    // hex reaches an inline style value, so it is checked before it is trusted
-    typeof i.hex === 'string' &&
-    HEX.test(i.hex) &&
-    isAllowedImageUrl(i.thumb) &&
-    (i.p === undefined || isPalette(i.p))
-  );
-}
 
 /** Page 0 of a bucket declares how many pages it has. Derived from the file, so
  * unlike a cursor it cannot drift out of step with what the caller holds. */
@@ -174,4 +119,15 @@ export function loadSpine(): Promise<Item[]> {
       throw err;
     });
   return spine;
+}
+
+/**
+ * The twin's page is usually already in the cache - it is the same bucket the
+ * reader is browsing - and otherwise costs exactly the one fetch the index
+ * promised. Null when the index and the page disagree, which the verifier
+ * should have caught at build time.
+ */
+export async function loadTwin(twin: Twin): Promise<Item | null> {
+  const page = await loadOneBucket(twin.bucket, twin.page);
+  return page.find((item) => item.id === twin.id) ?? null;
 }

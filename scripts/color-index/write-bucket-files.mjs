@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { hslToHex } from './hsl-to-hex.mjs';
 import { writeSpineFile } from './write-spine-file.mjs';
+import { attachTwins, findTwins } from './write-twins.mjs';
 
 export const BUCKET_COUNT = 24;
 export const BUCKET_WIDTH = 360 / BUCKET_COUNT;
@@ -120,6 +121,8 @@ export async function writeNeutralFiles(items, outDir) {
 export async function writeBucketFiles(items, outDir, dropped = {}, neutrals = []) {
   await mkdir(outDir, { recursive: true });
   const buckets = buildBuckets(items);
+  const twins = findTwins(buckets);
+  attachTwins(buckets, twins);
   const all = buildAll(buckets);
 
   for (const b of buckets) {
@@ -149,6 +152,7 @@ export async function writeBucketFiles(items, outDir, dropped = {}, neutrals = [
     entries: buckets.reduce((n, b) => n + b.count, 0),
     neutral,
     spine,
+    twins: twins.size,
     bySource: {
       met: items.filter((i) => i.src === 'met').length,
       cma: items.filter((i) => i.src === 'cma').length,

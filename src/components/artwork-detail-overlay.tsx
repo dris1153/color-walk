@@ -23,6 +23,7 @@ type Props = {
   onToggleSave: (item: Item) => void;
   onRequestClose: () => void;
   onBrowseColour: (hue: number, lightness: number) => void;
+  onOpen: (item: Item) => void;
 };
 
 export function ArtworkDetailOverlay({
@@ -31,6 +32,7 @@ export function ArtworkDetailOverlay({
   onToggleSave,
   onRequestClose,
   onBrowseColour,
+  onOpen,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const canZoom = isAllowedImageUrl(item.big);
@@ -133,6 +135,7 @@ export function ArtworkDetailOverlay({
             isSaved={isSaved}
             onToggleSave={onToggleSave}
             onBrowseColour={onBrowseColour}
+            onOpen={onOpen}
           />
         </aside>
       </div>

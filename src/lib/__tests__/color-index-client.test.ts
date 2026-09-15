@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { hasMorePages, loadBucketPage, loadBucketNear, loadSpine, type Item } from '../color-index-client';
+import { hasMorePages, isItem, loadBucketPage, loadBucketNear, loadSpine, type Item } from '../color-index-client';
 
 const item = (id: string): Item => ({
   id,
@@ -96,5 +96,38 @@ describe('the spine', () => {
     const fresh = await import('../color-index-client');
     serve({ '/index/spine.json': { count: 2, items: [item('ok'), { id: 'bad', hue: 999 }] } });
     expect((await fresh.loadSpine()).map((i) => i.id)).toEqual(['ok']);
+  });
+});
+
+describe('loadTwin', () => {
+  it('finds the twin on the page the index named, fetching it at most once', async () => {
+    vi.resetModules();
+    const fresh = await import('../color-index-client');
+    const seen = serve({
+      '/index/bucket-09.json': { bucket: 9, count: 700, pages: 2, items: full('p') },
+      '/index/bucket-09-1.json': { bucket: 9, page: 1, items: [item('twin-here')] },
+    });
+    const twin = { id: 'twin-here', bucket: 9, page: 1 };
+    expect((await fresh.loadTwin(twin))?.id).toBe('twin-here');
+    expect((await fresh.loadTwin(twin))?.id).toBe('twin-here');
+    expect(seen.filter((u) => u === '/index/bucket-09-1.json')).toHaveLength(1);
+  });
+
+  it('returns nothing rather than a wrong work when the page disagrees with the index', async () => {
+    vi.resetModules();
+    const fresh = await import('../color-index-client');
+    serve({ '/index/bucket-10.json': { bucket: 10, count: 1, pages: 1, items: full('q') } });
+    expect(await fresh.loadTwin({ id: 'nobody', bucket: 10, page: 0 })).toBeNull();
+  });
+});
+
+describe('isItem - the twin field', () => {
+  it('accepts a sound twin and rejects a broken one', () => {
+    const base = item('t');
+    expect(isItem({ ...base, twin: { id: 'x', bucket: 3, page: 0 } })).toBe(true);
+    expect(isItem({ ...base, twin: { id: 'x', bucket: 24, page: 0 } })).toBe(false);
+    expect(isItem({ ...base, twin: { id: 'x', bucket: 3, page: -1 } })).toBe(false);
+    expect(isItem({ ...base, twin: { id: 42, bucket: 3, page: 0 } })).toBe(false);
+    expect(isItem({ ...base, twin: 'x' })).toBe(false);
   });
 });

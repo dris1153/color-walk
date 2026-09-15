@@ -1,6 +1,7 @@
 import { isAllowedPageUrl } from '../lib/image-url';
 import { nearestColorName } from '../lib/color-name-table';
 import { hslToHex } from '../lib/color-math';
+import { useTwin } from '../hooks/use-twin';
 import type { Item } from '../lib/color-index-client';
 
 type Props = {
@@ -8,9 +9,13 @@ type Props = {
   isSaved: boolean;
   onToggleSave: (item: Item) => void;
   onBrowseColour: (hue: number, lightness: number) => void;
+  onOpen: (item: Item) => void;
 };
 
-export function ArtworkMetadataPanel({ item, isSaved, onToggleSave, onBrowseColour }: Props) {
+const MUSEUM = { met: 'the Metropolitan Museum', cma: 'the Cleveland Museum' } as const;
+
+export function ArtworkMetadataPanel({ item, isSaved, onToggleSave, onBrowseColour, onOpen }: Props) {
+  const twin = useTwin(item.twin);
   // OpenSeadragon and the browser will follow whatever URL they are handed, so
   // a hand-edited index file must not be able to aim either one elsewhere.
   const museumLink = isAllowedPageUrl(item.page) ? item.page : null;
@@ -54,6 +59,29 @@ export function ArtworkMetadataPanel({ item, isSaved, onToggleSave, onBrowseColo
             />
           ))}
         </div>
+      )}
+
+      {twin && (
+        <button
+          type="button"
+          onClick={() => onOpen(twin)}
+          className="group flex items-center gap-3 border border-ink/15 p-2 text-left hover:border-ink/60"
+          aria-label={`Open its twin, ${twin.t}`}
+        >
+          <img
+            src={twin.thumb}
+            alt=""
+            className="h-14 w-14 shrink-0 object-cover"
+            style={{ backgroundColor: twin.hex }}
+          />
+          <span className="min-w-0">
+            <span className="block font-mono text-[10px] tracking-widest uppercase text-ink/40">
+              Its twin at {MUSEUM[twin.src]}
+            </span>
+            <span className="block truncate text-sm text-ink group-hover:underline">{twin.t}</span>
+            <span className="block font-mono text-[10px] text-ink/50">{twin.hex}</span>
+          </span>
+        </button>
       )}
 
       {item.credit && <p className="text-xs leading-relaxed text-ink/50">{item.credit}</p>}

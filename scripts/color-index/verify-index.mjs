@@ -52,6 +52,8 @@ const bucketOnlySecondary = new Set();
 const meta = await read('meta.json');
 let counted = 0;
 const works = new Set();
+/** One check per distinct twin reference; the same twin on many copies is one. */
+const twinRefs = new Map();
 
 for (let b = 0; b < BUCKET_COUNT; b++) {
   const pad = String(b).padStart(2, '0');
@@ -72,6 +74,7 @@ for (let b = 0; b < BUCKET_COUNT; b++) {
       checkItem(item, b, fail);
       works.add(item.id);
       if (!item.p?.some((e) => e[3] > item.pct)) leadsHere++;
+      if (item.twin && !twinRefs.has(item.id)) twinRefs.set([item.twin.bucket, item.twin.page], item);
       if (item.pct > previousPct) fail(`bucket ${b}: items not sorted by pct across page ${page}`);
       previousPct = item.pct;
       seen++;
@@ -103,6 +106,20 @@ for (let page = 0; page < neutralFirst.pages; page++) {
 }
 if (neutralSeen !== neutralFirst.count) {
   fail(`neutral pages hold ${neutralSeen} items, count says ${neutralFirst.count}`);
+}
+
+// Twins: each must point at a real entry, in the bucket and page it names, at
+// the other museum. A wrong page would cost the reader a fetch for nothing.
+let twinCount = 0;
+for (const [ref, item] of twinRefs) {
+  const [bucket, page] = ref;
+  const file = page === 0
+    ? await read(`bucket-${String(bucket).padStart(2, '0')}.json`)
+    : await read(`bucket-${String(bucket).padStart(2, '0')}-${page}.json`).catch(() => null);
+  const found = file?.items.find((i) => i.id === item.twin.id);
+  if (!found) fail(`${item.id}: twin ${item.twin.id} is not on bucket ${bucket} page ${page}`);
+  else if (found.src === item.src) fail(`${item.id}: twin ${item.twin.id} is at the same museum`);
+  twinCount++;
 }
 
 // The spine: one small file that has to reach every corner, because the walk
@@ -164,6 +181,7 @@ console.log(
 );
 console.log(`plus ${neutralSeen} monochrome works across ${neutralFirst.pages} pages`);
 console.log(`spine holds ${spine.count} works reaching ${spineBuckets.size} hue buckets`);
+console.log(`${twinCount} works have a twin at the other museum`);
 console.log(`bySource ${JSON.stringify(meta.bySource)}  dropped ${JSON.stringify(meta.dropped)}`);
 if (errors.length > 0) {
   console.error(`FAILED (${errors.length} shown):`);

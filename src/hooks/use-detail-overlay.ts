@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Item } from '../lib/color-index-client';
+import { isItem, type Item } from '../lib/color-index-client';
 
 const isDetailEntry = (state: unknown) => (state as { cw?: string } | null)?.cw === 'detail';
 
@@ -17,8 +17,10 @@ export function useDetailOverlay(): {
   const [selected, setSelected] = useState<Item | null>(null);
   const closingRef = useRef(false);
 
+  // The work itself rides in the entry, so Back from a twin lands on the work
+  // it was opened from rather than leaving the overlay showing the wrong one.
   const open = useCallback((item: Item) => {
-    history.pushState({ cw: 'detail', id: item.id }, '');
+    history.pushState({ cw: 'detail', id: item.id, item }, '');
     setSelected(item);
   }, []);
 
@@ -32,8 +34,15 @@ export function useDetailOverlay(): {
 
   useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
-      if (isDetailEntry(event.state)) return; // navigating into a detail entry
       closingRef.current = false;
+      if (isDetailEntry(event.state)) {
+        // Back or Forward into a detail entry: show that work. history.state is
+        // same-origin but still a file the page did not just build, so it
+        // passes the same gate as the index.
+        const stored = (event.state as { item?: unknown }).item;
+        setSelected(isItem(stored) ? stored : null);
+        return;
+      }
       setSelected(null);
     };
     window.addEventListener('popstate', onPopState);

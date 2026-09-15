@@ -183,6 +183,7 @@ export function App() {
           onToggleSave={toggleSave}
           onRequestClose={requestClose}
           onBrowseColour={browseColour}
+          onOpen={open}
         />
       )}
     </>
