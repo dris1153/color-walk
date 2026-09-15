@@ -67,8 +67,25 @@ second Ctrl+C, and was waiting for an item that would never finish.
 - **The HEAD stage was a blind spot.** 45,942 HEADs at five a time is the longest stretch of a warm run, and it reported no progress and counted no inflight: status would have called it stalled for two hours. It is now its own stage, `sizes`, with a heartbeat.
 - **My first lock test deleted the live crawl's lock.** It used the real lock path and cleared it in `afterEach`. The test now uses a temp path; the live crawl got its lock back by hand.
 
-## Pending on this run finishing
+## The run finished, and ended itself
 
-The end-to-end exit-code proof, and `npm run verify:index` over the real
-`twin` / `composition.json` / `words.json` / `spine.json` - this same run
-produces them.
+Started 17:26:41Z by an accidental import of the entry point; ran the HEAD
+stage for 95 minutes (45,942 requests at ~8/s - my 2 h estimate was high) and
+colorized 89,814 works in 15; wrote the index at 6,743 s; then the process
+was gone. `crawl:status` read `finished: complete`, `inflight 0`, no lock
+file, no process. A crawl now ends.
+
+| | |
+|---|---|
+| Works / entries / monochrome | 70,722 / 128,799 / 19,092 |
+| Index on disk | 266 files, 80 MB; `.git` grows ~12 MB |
+| Share cards | rebuilt, 25 |
+
+## And the verifier had two bugs of its own
+
+Run over the real index it crashed with `ReferenceError: checkItem is not
+defined` - the side-file module had been split out of the main file by a
+script and referenced a helper it never received. `| tail` hid the exit code.
+Before crashing it had spent most of an hour in the twin loop, reading a
+300 kB page file once per twin, 128,799 times. Pages are now read once into a
+Map of ids; the whole verifier runs in **1.5 s** and passes.

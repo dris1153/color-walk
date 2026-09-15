@@ -52,8 +52,23 @@ frame, the fact that there are two museums, and any relation between two works.
 | app.tsx | 206 -> **191** after `ActivityLinks` + `ActivityView` |
 | Tests / CSP / CLS / overlay matrix | **239** / 0 / 0 / 8 of 8 |
 
-**Not yet verified:** twin p90 on the real index, real composition/word counts, and
-the verifier over real `twin`/`composition.json`/`words.json`. The owner's two
-crawls (started 22:39 and 23:04 on 2026-09-15, running concurrently) own
-`public/index`; both loaded pre-spine code and will overwrite it on exit. One
-`npm run build:index` afterwards produces every side file and answers these.
+## Measured on the real index (2026-09-16, 70,722 works)
+
+| | Predicted | Real |
+|---|---|---|
+| Twin distance, primaries only | p50 1.2, 91% within 5 | **p50 0.3, p90 1.6, p99 5.6, 99% within 5** - closer, because the cross-museum pool grew to 36k/34k |
+| Twins that resolve / at the other museum | - | 128,799 of 128,799 / all |
+| Works with a composition map | 33% | **11%** (7,835). The probe sampled the old, painting-heavy thumbnails; the full collection is objects on white grounds. `composition.json` is **336 kB** compressed, five times the estimate |
+| Words | ~193 | **875**, topped by catalogue nouns: fragment 5,961, piece, text, book, folio, textile. Subjects are in there ("dragon" 375) but the suggestions lead with boilerplate |
+| Spine | 220, 14 kB | 310, 22 kB, all 24 hues |
+
+Verified in the browser against the real files: twin card with 0 extra fetches
+and Back returning to the work it came from; "orange over blue" 299 works,
+"orange top and bottom" 3,034 (most works are one colour throughout, which is
+the 11% again); "drag" -> dragon 375, clicking the thickest segment lands on
+`#h=30`. `npm run verify:index` passes over every side file in 1.5 s.
+
+A measurement I got wrong first: computed over every entry, twin p90 was 27.7
+and only 55% within 5. Copies filed for a lesser colour carry their primary's
+twin, so the distance from a copy's colour to that twin is large by
+construction. Over primaries - the only honest population - the numbers above.

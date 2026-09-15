@@ -109,7 +109,7 @@ if (neutralSeen !== neutralFirst.count) {
 }
 
 const { twinCount, composition, spine, spineBuckets, words } = await verifySideFiles({
-  read, meta, fail, hostOk, ALLOWED_IMAGE_HOSTS, twinRefs, bucketOnlySecondary,
+  read, meta, fail, checkItem, hostOk, ALLOWED_IMAGE_HOSTS, twinRefs, bucketOnlySecondary,
 });
 
 const all = await read('all.json');
@@ -138,7 +138,7 @@ console.log(
 );
 console.log(`plus ${neutralSeen} monochrome works across ${neutralFirst.pages} pages`);
 console.log(`spine holds ${spine.count} works reaching ${spineBuckets.size} hue buckets`);
-console.log(`${twinCount} works have a twin at the other museum`);
+console.log(`${twinCount} entries carry a twin at the other museum`);
 console.log(`${composition.count} works have a composition map`);
 console.log(`${words.count} words carry a colour`);
 console.log(`bySource ${JSON.stringify(meta.bySource)}  dropped ${JSON.stringify(meta.dropped)}`);

@@ -2,20 +2,42 @@ import { BUCKET_COUNT, hueToBucket } from './write-bucket-files.mjs';
 import { spineHueCell, spineToneBand } from './write-spine-file.mjs';
 
 /**
- * The files beside the buckets: twins, the composition map and the spine. Each
- * points back into the bucket pages, so each is checked against them rather
- * than only against itself.
+ * The files beside the buckets: twins, the composition map, the spine and the
+ * words. Each points back into the bucket pages, so each is checked against
+ * them rather than only against itself. Pages are read once and their ids kept
+ * in a Set: at 70,000 twins, reading a 300 kB page per twin took the verifier
+ * from seconds to the better part of an hour.
  */
-export async function verifySideFiles({ read, meta, fail, hostOk, ALLOWED_IMAGE_HOSTS, twinRefs, bucketOnlySecondary }) {
+export async function verifySideFiles({
+  read,
+  meta,
+  fail,
+  checkItem,
+  hostOk,
+  ALLOWED_IMAGE_HOSTS,
+  twinRefs,
+  bucketOnlySecondary,
+}) {
+  const pages = new Map();
+  const pageOf = async (bucket, page) => {
+    const key = `${bucket}:${page}`;
+    if (!pages.has(key)) {
+      const name =
+        page === 0
+          ? `bucket-${String(bucket).padStart(2, '0')}.json`
+          : `bucket-${String(bucket).padStart(2, '0')}-${page}.json`;
+      const file = await read(name).catch(() => null);
+      pages.set(key, file ? new Map(file.items.map((i) => [i.id, i])) : null);
+    }
+    return pages.get(key);
+  };
+
   // Twins: each must point at a real entry, in the bucket and page it names, at
   // the other museum. A wrong page would cost the reader a fetch for nothing.
   let twinCount = 0;
   for (const [ref, item] of twinRefs) {
     const [bucket, page] = ref;
-    const file = page === 0
-      ? await read(`bucket-${String(bucket).padStart(2, '0')}.json`)
-      : await read(`bucket-${String(bucket).padStart(2, '0')}-${page}.json`).catch(() => null);
-    const found = file?.items.find((i) => i.id === item.twin.id);
+    const found = (await pageOf(bucket, page))?.get(item.twin.id);
     if (!found) fail(`${item.id}: twin ${item.twin.id} is not on bucket ${bucket} page ${page}`);
     else if (found.src === item.src) fail(`${item.id}: twin ${item.twin.id} is at the same museum`);
     twinCount++;
@@ -26,25 +48,13 @@ export async function verifySideFiles({ read, meta, fail, hostOk, ALLOWED_IMAGE_
   const composition = await read('composition.json');
   if (composition.count !== composition.items.length) fail('composition.json: count disagrees with items');
   if (composition.count !== meta.composition) fail('composition.json: count disagrees with meta.composition');
-  const pageCache = new Map();
-  const pageOf = async (bucket, page) => {
-    const key = `${bucket}:${page}`;
-    if (!pageCache.has(key)) {
-      const name = page === 0
-        ? `bucket-${String(bucket).padStart(2, '0')}.json`
-        : `bucket-${String(bucket).padStart(2, '0')}-${page}.json`;
-      pageCache.set(key, await read(name).catch(() => null));
-    }
-    return pageCache.get(key);
-  };
   for (const entry of composition.items) {
     if (!Array.isArray(entry.c) || entry.c.length !== 9) fail(`composition: ${entry.id} does not have nine cells`);
     else if (!entry.c.every((c) => c === null || (Array.isArray(c) && c.length === 2 && c[0] >= 0 && c[0] < 360))) {
       fail(`composition: ${entry.id} has a malformed cell`);
     }
     if (!hostOk(entry.thumb, ALLOWED_IMAGE_HOSTS)) fail(`composition: ${entry.id} thumb host not allowed`);
-    const page = await pageOf(entry.bucket, entry.page);
-    if (!page?.items.some((i) => i.id === entry.id)) {
+    if (!(await pageOf(entry.bucket, entry.page))?.has(entry.id)) {
       fail(`composition: ${entry.id} is not on bucket ${entry.bucket} page ${entry.page}`);
     }
   }
@@ -81,6 +91,7 @@ export async function verifySideFiles({ read, meta, fail, hostOk, ALLOWED_IMAGE_
       fail(`spine.json: hue bucket ${b} holds ${meta.byBucket[b]} entries but no spine work`);
     }
   }
+
   // Words: each a real word with a full 24-bucket histogram that sums to its count.
   const words = await read('words.json');
   if (words.count !== words.items.length) fail('words.json: count disagrees with items');

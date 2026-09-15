@@ -72,18 +72,27 @@ async function request(url, init, { retries, timeoutMs, signal }) {
   throw lastError ?? new Error(`request failed ${url}`);
 }
 
-/** `timeoutMs` is overridable only so a test can prove the deadline without waiting for it. */
+/**
+ * @typedef {{ retries?: number, signal?: AbortSignal, timeoutMs?: number }} RequestOptions
+ * `timeoutMs` is overridable only so a test can prove the deadline without waiting for it.
+ */
+
+/** @param {string} url @param {RequestOptions} [options] */
 export async function getJson(url, { retries = 4, signal, timeoutMs = JSON_TIMEOUT_MS } = {}) {
   const res = await request(url, { headers: { Accept: 'application/json' } }, { retries, timeoutMs, signal });
   return res.json();
 }
 
+/** @param {string} url @param {RequestOptions} [options] */
 export async function getBuffer(url, { retries = 4, signal, timeoutMs = IMAGE_TIMEOUT_MS } = {}) {
   const res = await request(url, {}, { retries, timeoutMs, signal });
   return Buffer.from(await res.arrayBuffer());
 }
 
-/** Content-Length in bytes, or null when the server does not report one. */
+/**
+ * Content-Length in bytes, or null when the server does not report one.
+ * @param {string} url @param {RequestOptions} [options]
+ */
 export async function head(url, { retries = 2, signal, timeoutMs = JSON_TIMEOUT_MS } = {}) {
   try {
     const res = await request(url, { method: 'HEAD' }, { retries, timeoutMs, signal });
