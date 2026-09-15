@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { pickTonePair, type TonePair } from '../lib/game-questions';
+import { recordStreak } from '../lib/game-store';
+import { useProgress } from '../hooks/use-progress';
 import type { Item } from '../lib/color-index-client';
 
 type Props = { pool: readonly Item[] };
@@ -11,7 +13,7 @@ export function GameDarker({ pool }: Props) {
   const [pair, setPair] = useState<TonePair | null>(null);
   const [answered, setAnswered] = useState<Item | null>(null);
   const [streak, setStreak] = useState(0);
-  const [best, setBest] = useState(0);
+  const { progress, update } = useProgress();
 
   const deal = useCallback(() => {
     setAnswered(null);
@@ -27,10 +29,9 @@ export function GameDarker({ pool }: Props) {
   const answer = (choice: Item) => {
     if (answered) return;
     setAnswered(choice);
-    const right = choice.id === pair.darker.id;
-    const next = right ? streak + 1 : 0;
+    const next = choice.id === pair.darker.id ? streak + 1 : 0;
     setStreak(next);
-    if (next > best) setBest(next);
+    update((previous) => recordStreak(previous, next));
   };
 
   return (
@@ -58,8 +59,8 @@ export function GameDarker({ pool }: Props) {
       </div>
       <p className="font-mono text-xs text-ink/70" role="status">
         {answered
-          ? `${answered.id === pair.darker.id ? 'Right' : 'Wrong'} - streak ${streak}, best ${best}`
-          : `Streak ${streak}, best ${best}`}
+          ? `${answered.id === pair.darker.id ? 'Right' : 'Wrong'} - streak ${streak}, best ${progress.bestStreak}`
+          : `Streak ${streak}, best ${progress.bestStreak}`}
       </p>
       {answered && (
         <button

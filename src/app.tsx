@@ -7,6 +7,7 @@ import { ArtworkMasonryGrid } from './components/artwork-masonry-grid';
 import { ArtworkHueRing } from './components/artwork-hue-ring';
 import { ColourGames } from './components/colour-games';
 import { ColourWalk } from './components/colour-walk';
+import { CollectionRing } from './components/collection-ring';
 import { useWalkState } from './hooks/use-walk-state';
 import {
   GalleryLoading,
@@ -147,13 +148,16 @@ export function App() {
           ) : asRing ? (
             <ArtworkHueRing items={items} onSelect={open} />
           ) : (
-            <ArtworkMasonryGrid
-              items={showingSaved ? favourites : revealed}
-              columns={columns}
-              onSelect={open}
-              onImageError={noteImageError}
-              onImageLoad={noteImageLoad}
-            />
+            <>
+              {showingSaved && <CollectionRing items={favourites} />}
+              <ArtworkMasonryGrid
+                items={showingSaved ? favourites : revealed}
+                columns={columns}
+                onSelect={open}
+                onImageError={noteImageError}
+                onImageLoad={noteImageLoad}
+              />
+            </>
           )}
           {!asRing && !playing && !walk.walking && <div ref={sentinelRef} className="h-px" />}
           {!showingSaved && !asRing && !playing && !walk.walking && (

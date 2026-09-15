@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useSpine } from '../hooks/use-spine';
+import { GameDaily } from './game-daily';
 import { GameDarker } from './game-darker';
 import { GameTone } from './game-tone';
 
 type Props = { onClose: () => void };
 
 const GAMES = [
+  { id: 'daily', label: 'Today' },
   { id: 'darker', label: 'Which is darker?' },
   { id: 'tone', label: 'How light is it?' },
 ] as const;
@@ -19,7 +21,7 @@ const TAB =
  * would complicate every other reader of it for nothing.
  */
 export function ColourGames({ onClose }: Props) {
-  const [game, setGame] = useState<(typeof GAMES)[number]['id']>('darker');
+  const [game, setGame] = useState<(typeof GAMES)[number]['id']>('daily');
   const { items, status } = useSpine();
 
   return (
@@ -41,7 +43,9 @@ export function ColourGames({ onClose }: Props) {
 
       {status === 'loading' && <p className="font-mono text-xs text-ink/50">Loading the collection...</p>}
       {status === 'error' && <p className="font-mono text-xs text-ink/50">Could not load the collection.</p>}
-      {status === 'ready' && (game === 'darker' ? <GameDarker pool={items} /> : <GameTone pool={items} />)}
+      {status === 'ready' && game === 'daily' && <GameDaily pool={items} />}
+      {status === 'ready' && game === 'darker' && <GameDarker pool={items} />}
+      {status === 'ready' && game === 'tone' && <GameTone pool={items} />}
     </section>
   );
 }
