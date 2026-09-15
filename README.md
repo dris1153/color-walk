@@ -171,6 +171,19 @@ monochrome index. Only bucket centres have a page. The fragment still wins when
 both are present, and the path is dropped as soon as the reader moves, so a link
 copied afterwards does not keep promising a colour they left.
 
+### The files beside the buckets
+
+Every `npm run build:index` also writes, from the same items:
+
+| File | What | Size |
+|---|---|---|
+| `spine.json` | 220 works reaching every hue and tone, for the walk and the games | ~14 kB |
+| `composition.json` | the ~33% of works whose 3x3 colour map varies, for search by arrangement | ~60 kB |
+| `words.json` | title words on >=40 works, each a 24-hue histogram | ~10 kB |
+| `twin` on each entry | the nearest colour at the other museum, in the same bucket | ~20 B/work |
+
+`npm run verify:index` checks each against the bucket pages it points into.
+
 ### How a work gets its colour
 
 `extract-dominant-color.mjs` downsamples each thumbnail to 48 pixels on its
