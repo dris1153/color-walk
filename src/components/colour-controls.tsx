@@ -18,6 +18,7 @@ type Props = {
   onSelect: (item: Item) => void;
   onColourFromImage: (hue: HueSelection, lightness: number) => void;
   onPlay: () => void;
+  onWalk: () => void;
 };
 
 const SWATCH_SATURATION = 70;
@@ -39,6 +40,7 @@ export function ColourControls({
   onSelect,
   onColourFromImage,
   onPlay,
+  onWalk,
 }: Props) {
   // While a gesture is in progress the centre stays a flat colour. Swapping the
   // artwork on every frame of a drag would both flicker and pull thumbnails at
@@ -157,6 +159,13 @@ export function ColourControls({
 
       <div className="flex items-center gap-3">
         <ColourFromImage onColour={onColourFromImage} />
+        <button
+          type="button"
+          onClick={onWalk}
+          className="font-mono text-[10px] tracking-widest uppercase text-ink/50 underline decoration-ink/20 underline-offset-4 hover:text-ink hover:decoration-ink/50"
+        >
+          Walk
+        </button>
         <button
           type="button"
           onClick={onPlay}

@@ -6,6 +6,8 @@ import { ColourControls } from './components/colour-controls';
 import { ArtworkMasonryGrid } from './components/artwork-masonry-grid';
 import { ArtworkHueRing } from './components/artwork-hue-ring';
 import { ColourGames } from './components/colour-games';
+import { ColourWalk } from './components/colour-walk';
+import { useWalkState } from './hooks/use-walk-state';
 import {
   GalleryLoading,
   GalleryStatus,
@@ -44,6 +46,7 @@ export function App() {
   const { selected, open, requestClose } = useDetailOverlay();
   const [needsReload, setNeedsReload] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const walk = useWalkState({ hue, tone });
 
   useDocumentChrome(hue);
 
@@ -115,6 +118,7 @@ export function App() {
           onSelect={open}
           onColourFromImage={jumpToColour}
           onPlay={() => setPlaying(true)}
+          onWalk={walk.plan}
         />
       </div>
 
@@ -125,12 +129,20 @@ export function App() {
           showingSaved={showingSaved}
           onToggle={() => setShowingSaved((v) => !v)}
         />
-        {imagesDown && !showingSaved && !playing && <ImagesUnavailableBanner />}
-        {status === 'loading' && !showingSaved && !playing && <GalleryLoading />}
+        {imagesDown && !showingSaved && !playing && !walk.walking && <ImagesUnavailableBanner />}
+        {status === 'loading' && !showingSaved && !playing && !walk.walking && <GalleryLoading />}
         {/* Reserves a viewport so the footer starts below the fold and the
             arriving grid cannot shift anything the reader can see. */}
         <div className="min-h-screen">
-          {playing ? (
+          {walk.walking ? (
+            <ColourWalk
+              from={{ hue: typeof hue === 'number' ? hue : 30, tone: tone ?? 50 }}
+              target={walk.target}
+              onStart={walk.start}
+              onSelect={open}
+              onClose={walk.end}
+            />
+          ) : playing ? (
             <ColourGames onClose={() => setPlaying(false)} />
           ) : asRing ? (
             <ArtworkHueRing items={items} onSelect={open} />
@@ -143,8 +155,8 @@ export function App() {
               onImageLoad={noteImageLoad}
             />
           )}
-          {!asRing && !playing && <div ref={sentinelRef} className="h-px" />}
-          {!showingSaved && !asRing && !playing && (
+          {!asRing && !playing && !walk.walking && <div ref={sentinelRef} className="h-px" />}
+          {!showingSaved && !asRing && !playing && !walk.walking && (
             <GalleryStatus
               status={status}
               total={items.length}
