@@ -5,10 +5,9 @@ import { useArtworksByHue } from './hooks/use-artworks-by-hue';
 import { ColourControls } from './components/colour-controls';
 import { ArtworkMasonryGrid } from './components/artwork-masonry-grid';
 import { ArtworkHueRing } from './components/artwork-hue-ring';
-import { ColourGames } from './components/colour-games';
-import { CompositionSearch } from './components/composition-search';
-import { ColourWalk } from './components/colour-walk';
 import { CollectionRing } from './components/collection-ring';
+import { ActivityView } from './components/activity-view';
+import type { Activity } from './components/activity-links';
 import { useWalkState } from './hooks/use-walk-state';
 import {
   GalleryLoading,
@@ -48,9 +47,10 @@ export function App() {
   const { selected, open, requestClose } = useDetailOverlay();
   const [needsReload, setNeedsReload] = useState(false);
   // Play and compose are local; the walk keeps its own state because it lives in the URL.
-  const [activity, setActivity] = useState<'play' | 'compose' | null>(null);
+  const [activity, setActivity] = useState<Exclude<Activity, 'walk'> | null>(null);
   const walk = useWalkState({ hue, tone });
-  const busy = walk.walking || activity !== null;
+  const current: Activity | null = walk.walking ? 'walk' : activity;
+  const busy = current !== null;
 
   useDocumentChrome(hue);
 
@@ -120,9 +120,7 @@ export function App() {
           onGestureEnd={commitHash}
           onSelect={open}
           onColourFromImage={jumpToColour}
-          onPlay={() => setActivity('play')}
-          onCompose={() => setActivity('compose')}
-          onWalk={walk.plan}
+          onActivity={(a) => (a === 'walk' ? walk.plan() : setActivity(a))}
         />
       </div>
 
@@ -138,18 +136,15 @@ export function App() {
         {/* Reserves a viewport so the footer starts below the fold and the
             arriving grid cannot shift anything the reader can see. */}
         <div className="min-h-screen">
-          {walk.walking ? (
-            <ColourWalk
+          {current ? (
+            <ActivityView
+              activity={current}
+              walk={walk}
               from={{ hue: typeof hue === 'number' ? hue : 30, tone: tone ?? 50 }}
-              target={walk.target}
-              onStart={walk.start}
-              onSelect={open}
-              onClose={walk.end}
+              onOpen={open}
+              onJumpToHue={jumpToHue}
+              onClose={() => (walk.walking ? walk.end() : setActivity(null))}
             />
-          ) : activity === 'play' ? (
-            <ColourGames onClose={() => setActivity(null)} />
-          ) : activity === 'compose' ? (
-            <CompositionSearch onOpen={open} onClose={() => setActivity(null)} />
           ) : asRing ? (
             <ArtworkHueRing items={items} onSelect={open} />
           ) : (

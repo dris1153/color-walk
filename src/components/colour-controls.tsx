@@ -6,7 +6,7 @@ import type { Item } from '../lib/color-index-client';
 import type { ViewState } from '../lib/view-hash';
 import { HueWheel } from './hue-wheel';
 import { ToneSlider } from './tone-slider';
-import { ColourFromImage } from './colour-from-image';
+import { ActivityLinks, type Activity } from './activity-links';
 
 type Props = {
   hue: HueSelection;
@@ -17,9 +17,7 @@ type Props = {
   onGestureEnd: (next?: Partial<ViewState>) => void;
   onSelect: (item: Item) => void;
   onColourFromImage: (hue: HueSelection, lightness: number) => void;
-  onPlay: () => void;
-  onWalk: () => void;
-  onCompose: () => void;
+  onActivity: (activity: Activity) => void;
 };
 
 const SWATCH_SATURATION = 70;
@@ -40,9 +38,7 @@ export function ColourControls({
   onGestureEnd,
   onSelect,
   onColourFromImage,
-  onPlay,
-  onWalk,
-  onCompose,
+  onActivity,
 }: Props) {
   // While a gesture is in progress the centre stays a flat colour. Swapping the
   // artwork on every frame of a drag would both flicker and pull thumbnails at
@@ -159,30 +155,7 @@ export function ColourControls({
         )}
       </p>
 
-      <div className="flex items-center gap-3">
-        <ColourFromImage onColour={onColourFromImage} />
-        <button
-          type="button"
-          onClick={onWalk}
-          className="font-mono text-[10px] tracking-widest uppercase text-ink/50 underline decoration-ink/20 underline-offset-4 hover:text-ink hover:decoration-ink/50"
-        >
-          Walk
-        </button>
-        <button
-          type="button"
-          onClick={onPlay}
-          className="font-mono text-[10px] tracking-widest uppercase text-ink/50 underline decoration-ink/20 underline-offset-4 hover:text-ink hover:decoration-ink/50"
-        >
-          Play
-        </button>
-        <button
-          type="button"
-          onClick={onCompose}
-          className="font-mono text-[10px] tracking-widest uppercase text-ink/50 underline decoration-ink/20 underline-offset-4 hover:text-ink hover:decoration-ink/50"
-        >
-          Arrange
-        </button>
-      </div>
+      <ActivityLinks onColourFromImage={onColourFromImage} onActivity={onActivity} />
     </div>
   );
 }

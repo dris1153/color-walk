@@ -81,5 +81,15 @@ export async function verifySideFiles({ read, meta, fail, hostOk, ALLOWED_IMAGE_
       fail(`spine.json: hue bucket ${b} holds ${meta.byBucket[b]} entries but no spine work`);
     }
   }
-  return { twinCount, composition, spine, spineBuckets };
+  // Words: each a real word with a full 24-bucket histogram that sums to its count.
+  const words = await read('words.json');
+  if (words.count !== words.items.length) fail('words.json: count disagrees with items');
+  if (words.count !== meta.words) fail('words.json: count disagrees with meta.words');
+  for (const entry of words.items) {
+    if (typeof entry.w !== 'string' || !/^[a-z]{4,}$/.test(entry.w)) fail(`words: malformed word ${JSON.stringify(entry.w)}`);
+    if (!Array.isArray(entry.h) || entry.h.length !== BUCKET_COUNT) fail(`words: ${entry.w} lacks 24 buckets`);
+    else if (entry.h.reduce((a, b) => a + b, 0) !== entry.n) fail(`words: ${entry.w} histogram does not sum to ${entry.n}`);
+  }
+
+  return { twinCount, composition, spine, spineBuckets, words };
 }

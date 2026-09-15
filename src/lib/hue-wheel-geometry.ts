@@ -22,7 +22,9 @@ export function hueToHandlePosition(hue: number): { left: string; top: string } 
   };
 }
 
-export type RingSegment = { d: string; color: string; width: number };
+/** `bucket` is carried because empty buckets draw nothing: a segment's index
+ *  in the array is not its place on the wheel. */
+export type RingSegment = { bucket: number; d: string; color: string; width: number };
 
 /** The ring is drawn in a 100x100 viewBox. */
 const CENTRE = 50;
@@ -57,6 +59,7 @@ export function ringSegments(
     const [x1, y1] = polar(RADIUS, start);
     const [x2, y2] = polar(RADIUS, end);
     segments.push({
+      bucket: index,
       d: `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${RADIUS} ${RADIUS} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`,
       color: hueColor(centre),
       width: THINNEST + weight * (THICKEST - THINNEST),

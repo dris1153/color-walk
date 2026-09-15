@@ -4,6 +4,7 @@ import { hslToHex } from './hsl-to-hex.mjs';
 import { writeSpineFile } from './write-spine-file.mjs';
 import { attachTwins, findTwins } from './write-twins.mjs';
 import { writeCompositionFile } from './write-composition-file.mjs';
+import { writeWordsFile } from './write-words-file.mjs';
 
 export const BUCKET_COUNT = 24;
 export const BUCKET_WIDTH = 360 / BUCKET_COUNT;
@@ -136,6 +137,7 @@ export async function writeBucketFiles(items, outDir, dropped = {}, neutrals = [
     });
   }
   const composition = await writeCompositionFile(items, (id) => located.get(id), outDir);
+  const words = await writeWordsFile(items, outDir);
   for (const b of buckets) for (const entry of b.items) delete entry.c;
   const all = buildAll(buckets);
 
@@ -168,6 +170,7 @@ export async function writeBucketFiles(items, outDir, dropped = {}, neutrals = [
     spine,
     twins: twins.size,
     composition,
+    words,
     bySource: {
       met: items.filter((i) => i.src === 'met').length,
       cma: items.filter((i) => i.src === 'cma').length,
