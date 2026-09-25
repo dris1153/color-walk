@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { hslToHex, type HueSelection } from '../lib/color-math';
 import { nearestColorName, toneName } from '../lib/color-name-table';
 import { isAllowedImageUrl } from '../lib/image-url';
+import { withViewTransition } from '../lib/view-transition';
 import type { Item } from '../lib/color-index-client';
 import type { ViewState } from '../lib/view-hash';
 import { HueWheel } from './hue-wheel';
@@ -74,14 +75,16 @@ export function ColourControls({
   const toggleGrey = useCallback(() => {
     const next = hue === 'grey' ? null : 'grey';
     setAdjusting(false);
-    onHueChange(next);
+    withViewTransition(() => onHueChange(next));
     onGestureEnd({ hue: next }); // same tick as the setter
   }, [hue, onHueChange, onGestureEnd]);
 
   const clear = useCallback(() => {
     setAdjusting(false);
-    onHueChange(null);
-    onToneChange(null);
+    withViewTransition(() => {
+      onHueChange(null);
+      onToneChange(null);
+    });
     onGestureEnd({ hue: null, tone: null }); // same tick as the setters
   }, [onHueChange, onToneChange, onGestureEnd]);
 

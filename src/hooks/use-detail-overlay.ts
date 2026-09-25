@@ -12,6 +12,7 @@ const isDetailEntry = (state: unknown) => (state as { cw?: string } | null)?.cw 
 export function useDetailOverlay(): {
   selected: Item | null;
   open: (item: Item) => void;
+  replace: (item: Item) => void;
   requestClose: () => void;
 } {
   const [selected, setSelected] = useState<Item | null>(null);
@@ -21,6 +22,15 @@ export function useDetailOverlay(): {
   // it was opened from rather than leaving the overlay showing the wrong one.
   const open = useCallback((item: Item) => {
     history.pushState({ cw: 'detail', id: item.id, item }, '');
+    setSelected(item);
+  }, []);
+
+  // A step to a neighbour rewrites the entry rather than adding one, so Back
+  // still closes the overlay in one move instead of retracing every step.
+  const replace = useCallback((item: Item) => {
+    const entry = { cw: 'detail', id: item.id, item };
+    if (isDetailEntry(history.state)) history.replaceState(entry, '');
+    else history.pushState(entry, '');
     setSelected(item);
   }, []);
 
@@ -49,5 +59,5 @@ export function useDetailOverlay(): {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  return { selected, open, requestClose };
+  return { selected, open, replace, requestClose };
 }

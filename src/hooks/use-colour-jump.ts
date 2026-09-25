@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { clampTone, type HueSelection } from '../lib/color-math';
+import { withViewTransition } from '../lib/view-transition';
 import type { ViewState } from '../lib/view-hash';
 import type { Item } from '../lib/color-index-client';
 
@@ -30,8 +31,10 @@ export function useColourJump({
     (hue: HueSelection, lightness: number) => {
       const tone = clampTone(lightness);
       onLeaveSaved();
-      setHue(hue);
-      setTone(tone);
+      withViewTransition(() => {
+        setHue(hue);
+        setTone(tone);
+      });
       pushHash({ hue, tone });
     },
     [onLeaveSaved, setHue, setTone, pushHash],

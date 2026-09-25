@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useViewFromUrlHash } from './hooks/use-view-from-url-hash';
 import { useColumnCount } from './hooks/use-column-count';
 import { useArtworksByHue } from './hooks/use-artworks-by-hue';
@@ -19,9 +19,12 @@ import { SavedToggle } from './components/saved-toggle';
 import { useFavourites } from './hooks/use-favourites';
 import { useRevealOnScroll } from './hooks/use-reveal-on-scroll';
 import { useDetailOverlay } from './hooks/use-detail-overlay';
+import { useDetailStepping } from './hooks/use-detail-stepping';
+import { ReloadBanner } from './components/reload-banner';
 import { useDocumentChrome } from './hooks/use-document-chrome';
 import { useColourJump } from './hooks/use-colour-jump';
 import type { HueSelection } from './lib/color-math';
+import { withViewTransition } from './lib/view-transition';
 import { ArtworkDetailOverlay } from './components/artwork-detail-overlay';
 
 export function App() {
@@ -44,13 +47,20 @@ export function App() {
   /** The landing view becomes the wheel itself, but only where there is room
    *  for it: below 1024px a ring of this many works is unreadable. */
   const asRing = hue === null && tone === null && !showingSaved && columns >= 4;
-  const { selected, open, requestClose } = useDetailOverlay();
-  const [needsReload, setNeedsReload] = useState(false);
+  const { selected, open, replace, requestClose } = useDetailOverlay();
   // Play and compose are local; the walk keeps its own state because it lives in the URL.
   const [activity, setActivity] = useState<Exclude<Activity, 'walk'> | null>(null);
   const walk = useWalkState({ hue, tone });
   const current: Activity | null = walk.walking ? 'walk' : activity;
   const busy = current !== null;
+  // Arrows step through what is behind the overlay; an activity has its own order.
+  const { prev, next, step } = useDetailStepping({
+    items: busy ? [] : showingSaved ? favourites : items,
+    shown: showingSaved ? favourites.length : revealed.length,
+    selected,
+    replace,
+    revealMore: showingSaved ? undefined : revealMore,
+  });
 
   useDocumentChrome(hue);
 
@@ -82,34 +92,16 @@ export function App() {
 
   const jumpToHue = useCallback(
     (next: number) => {
-      browseHue(next);
+      withViewTransition(() => browseHue(next));
       commitHash({ hue: next });
     },
     [browseHue, commitHash],
   );
 
-  useEffect(() => {
-    const onPreloadError = () => setNeedsReload(true);
-    window.addEventListener('vite:preloadError', onPreloadError as EventListener);
-    return () =>
-      window.removeEventListener('vite:preloadError', onPreloadError as EventListener);
-  }, []);
-
   return (
     <>
       <div className="hue-tint" />
-      {needsReload && (
-        <div className="fixed inset-x-0 top-0 z-[60] flex items-center justify-center gap-3 bg-ground/95 p-2 text-center font-mono text-xs text-ink/80">
-          A newer version of this page is available.
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="border border-ink/30 px-3 py-1 hover:text-ink"
-          >
-            Reload
-          </button>
-        </div>
-      )}
+      <ReloadBanner />
       <div className="fixed bottom-3 left-1/2 z-30 -translate-x-1/2 lg:bottom-auto lg:left-8 lg:top-1/2 lg:translate-x-0 lg:-translate-y-1/2">
         <ColourControls
           hue={hue}
@@ -184,6 +176,9 @@ export function App() {
           onRequestClose={requestClose}
           onBrowseColour={browseColour}
           onOpen={open}
+          prev={prev}
+          next={next}
+          onStep={step}
         />
       )}
     </>

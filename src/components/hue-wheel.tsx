@@ -3,6 +3,7 @@ import { hslToHex, normalizeHue, type HueSelection } from '../lib/color-math';
 import { HUE_SEGMENT_WEIGHTS } from '../lib/hue-density';
 import { nearestColorName } from '../lib/color-name-table';
 import { hueToHandlePosition, pointToHue, ringSegments } from '../lib/hue-wheel-geometry';
+import { withViewTransition } from '../lib/view-transition';
 import type { ViewState } from '../lib/view-hash';
 
 type Props = {
@@ -31,10 +32,11 @@ export function HueWheel({ hue, onHueChange, onGestureEnd }: Props) {
     onHueChange(pointToHue(el.getBoundingClientRect(), event.clientX, event.clientY));
   };
 
+  // The press is a jump and gets a transition; the moves that may follow are a drag and do not.
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     dragging.current = true;
     event.currentTarget.setPointerCapture(event.pointerId);
-    emitFromPointer(event);
+    withViewTransition(() => emitFromPointer(event));
   };
 
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
@@ -57,8 +59,8 @@ export function HueWheel({ hue, onHueChange, onGestureEnd }: Props) {
       : event.key === 'PageDown' ? -PAGE_STEP
       : null;
 
-    if (delta !== null) onHueChange(normalizeHue(current + delta));
-    else if (event.key === 'Home') onHueChange(0);
+    if (delta !== null) withViewTransition(() => onHueChange(normalizeHue(current + delta)));
+    else if (event.key === 'Home') withViewTransition(() => onHueChange(0));
     else return;
     event.preventDefault();
   };

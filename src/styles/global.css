@@ -55,6 +55,13 @@ html {
   transition: background-color 600ms ease;
 }
 
+/* Each card keeps its name across a re-sort, so a discrete change of hue slides
+   it to its new place; everything unnamed crossfades. Drags never transition. */
+::view-transition-group(*) {
+  animation-duration: 400ms;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
 /* The ring itself is drawn as SVG arcs, one per hue bucket. This element is
    only the drag surface, which is why it keeps its size but no paint. */
 .hue-ring {

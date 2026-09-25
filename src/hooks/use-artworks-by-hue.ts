@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { hueToBucket, rankPages, type HueSelection } from '../lib/color-math';
 import { hasMorePages, loadBucketNear, loadBucketPage, type Item } from '../lib/color-index-client';
+import { withViewTransition } from '../lib/view-transition';
 
 export type LoadStatus = 'loading' | 'ready' | 'error';
 
@@ -46,6 +47,9 @@ export function useArtworksByHue(
   const backoffTimer = useRef<number | undefined>(undefined);
   const loadedPages = useRef(1);
   const fetchingPage = useRef(false);
+  /** Whether a grid is already up: the very first fill must paint at once, not
+   *  fade in behind a transition that would also cloud the LCP measurement. */
+  const hasGrid = useRef(false);
   /** Bumped on every bucket change, so a page that arrives late is discarded
    * instead of appended to whatever hue the reader moved on to. */
   const generation = useRef(0);
@@ -62,8 +66,14 @@ export function useArtworksByHue(
       .then((items) => {
         if (stale) return;
         attempt.current = 0;
-        setPages([items]);
-        setStatus('ready');
+        const show = () => {
+          setPages([items]);
+          setStatus('ready');
+        };
+        // A new bucket arriving replaces the whole grid, so it crossfades too.
+        if (hasGrid.current) withViewTransition(show);
+        else show();
+        hasGrid.current = true;
       })
       .catch(() => {
         if (stale) return;

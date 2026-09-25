@@ -9,6 +9,12 @@ import { ArtworkCard } from './artwork-card';
  * into the same high-priority race as the one that decides LCP.
  */
 const EAGER_ROWS = 2;
+/**
+ * How many cards take part in a view transition. Each named card is snapshotted
+ * on its own: 60 cost under 80 ms even in software rendering, 240 cost 193 ms.
+ * Cards past the first screenfuls are below the fold and would slide unseen.
+ */
+const NAMED_MAX = 60;
 
 type Props = {
   items: Item[];
@@ -30,6 +36,7 @@ export function ArtworkMasonryGrid({
     () => new Set(items.slice(0, columns * EAGER_ROWS).map((i) => i.id)),
     [items, columns],
   );
+  const namedIds = useMemo(() => new Set(items.slice(0, NAMED_MAX).map((i) => i.id)), [items]);
 
   return (
     <div className="flex gap-1.5">
@@ -40,6 +47,7 @@ export function ArtworkMasonryGrid({
               key={item.id}
               item={item}
               eager={eagerIds.has(item.id)}
+              named={namedIds.has(item.id)}
               onSelect={onSelect}
               onImageError={onImageError}
               onImageLoad={onImageLoad}
