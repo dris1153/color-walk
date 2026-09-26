@@ -4,12 +4,12 @@ import { useColumnCount } from './hooks/use-column-count';
 import { useArtworksByHue } from './hooks/use-artworks-by-hue';
 import { ColourControls } from './components/colour-controls';
 import { ActivityView } from './components/activity-view';
-import type { Activity } from './components/activity-links';
+import type { Activity, Entry } from './components/activity-links';
+import { CameraColour } from './components/camera-colour';
 import { useWalkState } from './hooks/use-walk-state';
 import { GalleryLoading, ImagesUnavailableBanner } from './components/gallery-status';
 import { GalleryBody } from './components/gallery-body';
-import { GalleryFilters } from './components/gallery-filters';
-import { VisionControl } from './components/vision-control';
+import { GalleryToolbar } from './components/gallery-toolbar';
 import { AttributionFooter } from './components/attribution-footer';
 import { SavedToggle } from './components/saved-toggle';
 import { useFavourites } from './hooks/use-favourites';
@@ -54,15 +54,25 @@ export function App() {
   useDocumentChrome(hue);
 
   const leaveSaved = useCallback(() => setShowingSaved(false), []);
-  const { browseColour, jumpToColour } = useColourJump({
+  const { browseColour, jumpToColour, followColour } = useColourJump({
     selected,
     requestClose,
     setHue,
     setTone,
     setFilter,
     pushHash,
+    commitHash,
     onLeaveSaved: leaveSaved,
   });
+  const [cameraOn, setCameraOn] = useState(false);
+  // The camera drives the grid, so it closes whatever activity is covering it.
+  const startEntry = (entry: Entry) => {
+    if (entry === 'camera') {
+      setActivity(null);
+      setCameraOn(true);
+    } else if (entry === 'walk') walk.plan();
+    else setActivity(entry);
+  };
 
   const browseHue = useCallback(
     (next: HueSelection) => {
@@ -122,23 +132,18 @@ export function App() {
           onGestureEnd={commitHash}
           onSelect={open}
           onColourFromImage={jumpToColour}
-          onActivity={(a) => (a === 'walk' ? walk.plan() : setActivity(a))}
+          onActivity={startEntry}
         />
       </div>
 
       <main className="relative z-10 px-1.5 pb-56 pt-6 lg:pb-12 lg:pl-[320px]">
         <h1 className="sr-only">Color Walk</h1>
-        <div className="flex flex-wrap items-start gap-2">
-          {!showingSaved && !busy && <GalleryFilters filter={filter} onChange={changeFilter} />}
-          <VisionControl />
-          <div className="ml-auto">
-            <SavedToggle
-              count={favourites.length}
-              showingSaved={showingSaved}
-              onToggle={() => setShowingSaved((v) => !v)}
-            />
-          </div>
-        </div>
+        <GalleryToolbar
+          filter={filter}
+          onFilter={changeFilter}
+          showFilters={!showingSaved && !busy}
+          saved={<SavedToggle count={favourites.length} showingSaved={showingSaved} onToggle={() => setShowingSaved((v) => !v)} />}
+        />
         {imagesDown && !showingSaved && !busy && <ImagesUnavailableBanner />}
         {status === 'loading' && !showingSaved && !busy && <GalleryLoading />}
         {/* Reserves a viewport so the footer starts below the fold and the
@@ -174,6 +179,7 @@ export function App() {
         <AttributionFooter />
       </main>
 
+      {cameraOn && <CameraColour onColour={followColour} onClose={() => setCameraOn(false)} />}
       {selected && (
         <ArtworkDetailOverlay
           key={selected.id}

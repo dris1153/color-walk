@@ -343,6 +343,11 @@ index is a file and files get edited.
 `vercel.json` carries the Content-Security-Policy. It contains no
 `unsafe-inline` and no `unsafe-eval`.
 
+`Permissions-Policy` allows the camera for this origin only (`camera=(self)`),
+for "Camera" under "Your pictures": frames are read once a second into a canvas
+in the page to find their colour, never sent anywhere, and the stream stops when
+the card closes. Geolocation and the microphone stay off.
+
 The single inline `<style>` on the page is the rule OpenSeadragon 6.1.1 injects
 to drop a focus outline on touch devices, covered by the `style-src-elem` hash
 `sha256-9xTiqzfwFaL2SGb1rmr8gysEwVVjIvqWAgmZgqFqpEE=`. **Bumping OpenSeadragon

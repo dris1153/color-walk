@@ -54,7 +54,7 @@ export function VisionControl() {
         aria-label="See the collection as"
         value={vision}
         onChange={(e) => setVision(e.target.value as Vision | '')}
-        className={`mb-3 border bg-ground px-2 py-1.5 font-mono text-[11px] tracking-widest uppercase hover:border-ink/50 hover:text-ink ${vision ? 'border-ink/60 text-ink' : 'border-ink/20 text-ink/70'}`}
+        className={`border bg-ground px-2 py-1.5 font-mono text-[11px] tracking-widest uppercase hover:border-ink/50 hover:text-ink ${vision ? 'border-ink/60 text-ink' : 'border-ink/20 text-ink/70'}`}
       >
         {OPTIONS.map(([id, label]) => (
           <option key={id} value={id}>

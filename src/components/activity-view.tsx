@@ -4,6 +4,7 @@ import { CompositionSearch } from './composition-search';
 import { EchoPairs } from './echo-pairs';
 import { EraColours } from './era-colours';
 import { MosaicMaker } from './mosaic-maker';
+import { SlowLooking } from './slow-looking';
 import { WordColour } from './word-colour';
 import type { Activity } from './activity-links';
 import type { WalkPoint } from '../lib/walk-route';
@@ -37,6 +38,8 @@ export function ActivityView({ activity, walk, from, wheelHue, onOpen, onJumpToH
       return <CompositionSearch onOpen={onOpen} onClose={onClose} />;
     case 'echoes':
       return <EchoPairs onOpen={onOpen} onClose={onClose} />;
+    case 'slow':
+      return <SlowLooking startHue={wheelHue} onOpen={onOpen} onClose={onClose} />;
     case 'mosaic':
       return <MosaicMaker onOpen={onOpen} onClose={onClose} />;
     case 'word':

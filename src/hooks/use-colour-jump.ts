@@ -12,6 +12,7 @@ type Options = {
   setTone: (tone: number | null) => void;
   setFilter: (next: Partial<Filter>) => void;
   pushHash: (next: Partial<ViewState>) => void;
+  commitHash: (next?: Partial<ViewState>) => void;
   onLeaveSaved: () => void;
 };
 
@@ -28,10 +29,12 @@ export function useColourJump({
   setTone,
   setFilter,
   pushHash,
+  commitHash,
   onLeaveSaved,
 }: Options): {
   browseColour: (hue: number, lightness: number, facet?: Filter) => void;
   jumpToColour: (hue: HueSelection, lightness: number, facet?: Filter) => void;
+  followColour: (hue: HueSelection, lightness: number) => void;
 } {
   const [pending, setPending] = useState<{ hue: number; lig: number; facet?: Filter } | null>(null);
 
@@ -47,6 +50,19 @@ export function useColourJump({
       pushHash({ hue, tone, ...(facet && filterToView(facet)) });
     },
     [onLeaveSaved, setHue, setTone, setFilter, pushHash],
+  );
+
+  // A colour that keeps changing (the camera) rewrites the entry instead of
+  // adding one per second, and skips the transition, which would never settle.
+  const followColour = useCallback(
+    (hue: HueSelection, lightness: number) => {
+      const tone = clampTone(lightness);
+      onLeaveSaved();
+      setHue(hue);
+      setTone(tone);
+      commitHash({ hue, tone });
+    },
+    [onLeaveSaved, setHue, setTone, commitHash],
   );
 
   // Both axes are set, not just the hue: a swatch shows one colour, and hue
@@ -68,5 +84,5 @@ export function useColourJump({
     setPending(null);
   }, [pending, selected, jumpToColour]);
 
-  return { browseColour, jumpToColour };
+  return { browseColour, jumpToColour, followColour };
 }

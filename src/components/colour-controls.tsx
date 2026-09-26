@@ -7,7 +7,7 @@ import type { Item } from '../lib/color-index-client';
 import type { ViewState } from '../lib/view-hash';
 import { HueWheel } from './hue-wheel';
 import { ToneSlider } from './tone-slider';
-import { ActivityLinks, type Activity } from './activity-links';
+import { ActivityLinks, type Entry } from './activity-links';
 
 type Props = {
   hue: HueSelection;
@@ -18,7 +18,7 @@ type Props = {
   onGestureEnd: (next?: Partial<ViewState>) => void;
   onSelect: (item: Item) => void;
   onColourFromImage: (hue: HueSelection, lightness: number) => void;
-  onActivity: (activity: Activity) => void;
+  onActivity: (entry: Entry) => void;
 };
 
 const SWATCH_SATURATION = 70;

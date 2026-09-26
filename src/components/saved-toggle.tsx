@@ -9,7 +9,7 @@ export function SavedToggle({ count, showingSaved, onToggle }: Props) {
   if (count === 0) return null;
 
   return (
-    <div className="mb-3 flex justify-end">
+    <div className="flex justify-end">
       <button
         type="button"
         onClick={onToggle}

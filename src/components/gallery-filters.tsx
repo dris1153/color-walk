@@ -38,7 +38,7 @@ function FacetSelect({ label, any, options, value, onChange }: FacetProps) {
 /** Kind, time and place, over whatever colour the wheel has chosen. */
 export function GalleryFilters({ filter, onChange }: Props) {
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <FacetSelect label="Kind of object" any="Any kind" options={KINDS} value={filter.kind} onChange={(kind) => onChange({ kind })} />
       <FacetSelect label="Time" any="Any time" options={ERAS} value={filter.era} onChange={(era) => onChange({ era })} />
       <FacetSelect label="Region" any="Anywhere" options={REGIONS} value={filter.region} onChange={(region) => onChange({ region })} />
