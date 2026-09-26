@@ -112,7 +112,7 @@ if (neutralSeen !== neutralFirst.count) {
   fail(`neutral pages hold ${neutralSeen} items, count says ${neutralFirst.count}`);
 }
 
-const { twinCount, composition, spine, spineBuckets, words, eras } = await verifySideFiles({
+const { twinCount, composition, spine, spineBuckets, words, eras, histories, mosaic } = await verifySideFiles({
   read, meta, fail, checkItem, hostOk, ALLOWED_IMAGE_HOSTS, twinRefs, bucketOnlySecondary,
 });
 
@@ -146,6 +146,7 @@ console.log(`${twinCount} entries carry a twin at another museum`);
 console.log(`${composition.count} works have a composition map`);
 console.log(`${words.count} words carry a colour`);
 console.log(`${meta.dated} works dated across ${eras.eras.length} eras, ${eras.undated} undated`);
+console.log(`${histories.count} colour-history cells, ${mosaic?.count ?? 0} mosaic tiles`);
 console.log(`bySource ${JSON.stringify(meta.bySource)}  dropped ${JSON.stringify(meta.dropped)}`);
 if (errors.length > 0) {
   console.error(`FAILED (${errors.length} shown):`);

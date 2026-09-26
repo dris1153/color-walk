@@ -245,9 +245,16 @@ Every `npm run build:index` also writes, from the same items:
 | `composition.json` | the ~33% of works whose 3x3 colour map varies, for search by arrangement | ~60 kB |
 | `words.json` | title words on >=40 works, each a 24-hue histogram | ~10 kB |
 | `eras.json` | per era, the works by the hue they lead with, plus the monochrome count | ~3 kB |
+| `histories.json` | per hue and era, the work that shows that colour best, for the history timeline | ~11 kB gz |
+| `mosaic.jpg` + `mosaic.json` | 4,096 32 px tiles picked evenly across Lab space, and their mean colours, for the mosaic | ~0.9 MB + ~115 kB gz |
 | `twin` on each entry | the nearest colour at another museum, in the same bucket | ~20 B/work |
 
 `npm run verify:index` checks each against the bucket pages it points into.
+
+The mosaic atlas is served from this site on purpose: the museums' images carry
+no CORS header, so a canvas that drew them could never be saved. A reader's
+picture is read with FileReader and matched in the browser (nearest tile in Lab,
+with a penalty for reuse); nothing is uploaded.
 
 ### How a work gets its colour
 

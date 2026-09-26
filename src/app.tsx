@@ -147,6 +147,7 @@ export function App() {
               activity={current}
               walk={walk}
               from={{ hue: typeof hue === 'number' ? hue : 30, tone: tone ?? 50 }}
+              wheelHue={typeof hue === 'number' ? hue : null}
               onOpen={open}
               onJumpToHue={jumpToHue}
               onBrowseEra={browseEra}

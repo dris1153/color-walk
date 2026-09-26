@@ -22,10 +22,8 @@ export async function verifySideFiles({
   const pageOf = async (bucket, page) => {
     const key = `${bucket}:${page}`;
     if (!pages.has(key)) {
-      const name =
-        page === 0
-          ? `bucket-${String(bucket).padStart(2, '0')}.json`
-          : `bucket-${String(bucket).padStart(2, '0')}-${page}.json`;
+      const stem = bucket === 'grey' ? 'neutral' : `bucket-${String(bucket).padStart(2, '0')}`;
+      const name = page === 0 ? `${stem}.json` : `${stem}-${page}.json`;
       const file = await read(name).catch(() => null);
       pages.set(key, file ? new Map(file.items.map((i) => [i.id, i])) : null);
     }
@@ -114,5 +112,22 @@ export async function verifySideFiles({
   if (dated !== meta.dated) fail(`eras.json: ${dated} dated works, meta.dated is ${meta.dated}`);
   if (dated + eras.undated !== meta.total + meta.neutral) fail('eras.json: dated and undated do not add up to every work');
 
-  return { twinCount, composition, spine, spineBuckets, words, eras };
+  // Histories and mosaic tiles open a work with one page fetch, so each must be
+  // on the page it names; a history entry must also sit in its hue and era.
+  // An index built before histories existed has no count for them in meta.
+  const histories = (await read('histories.json').catch(() => null)) ?? { count: 0, items: [] };
+  if ('histories' in meta && histories.count !== meta.histories) fail(`histories.json: ${histories.count} entries, meta.histories is ${meta.histories}`);
+  for (const h of histories.items) {
+    if (!(await pageOf(h.bucket, h.page))?.has(h.id)) fail(`histories: ${h.id} is not on bucket ${h.bucket} page ${h.page}`);
+    if (!hostOk(h.thumb, ALLOWED_IMAGE_HOSTS)) fail(`histories: ${h.id} thumb host not allowed`);
+    if (h.bucket !== h.h) fail(`histories: ${h.id} is filed under hue ${h.h} but lives in bucket ${h.bucket}`);
+  }
+  const mosaic = meta.mosaic > 0 ? await read('mosaic.json').catch(() => null) : null;
+  if (meta.mosaic > 0 && mosaic?.count !== meta.mosaic) fail('mosaic.json: missing, or its count disagrees with meta.mosaic');
+  for (const tile of mosaic?.items ?? []) {
+    if (!(await pageOf(tile.b, tile.p))?.has(tile.id)) fail(`mosaic: ${tile.id} is not on ${tile.b} page ${tile.p}`);
+    if (!Array.isArray(tile.l) || tile.l.length !== 3) fail(`mosaic: ${tile.id} has no Lab colour`);
+  }
+
+  return { twinCount, composition, spine, spineBuckets, words, eras, histories, mosaic };
 }

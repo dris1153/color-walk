@@ -127,7 +127,10 @@ export function loadSpine(): Promise<Item[]> {
  * promised. Null when the index and the page disagree, which the verifier
  * should have caught at build time.
  */
-export async function loadTwin(twin: Twin): Promise<Item | null> {
-  const page = await loadOneBucket(twin.bucket, twin.page);
-  return page.find((item) => item.id === twin.id) ?? null;
+export const loadTwin = (twin: Twin): Promise<Item | null> => loadEntry(twin.bucket, twin.page, twin.id);
+
+/** A work named by a side file (twin, mosaic tile, history), from the one page it lives on. */
+export async function loadEntry(bucket: number | 'grey', page: number, id: string): Promise<Item | null> {
+  const items = await loadOneBucket(bucket, page);
+  return items.find((item) => item.id === id) ?? null;
 }

@@ -146,6 +146,7 @@ async function main() {
         download: downloaded.failed + colored.decodeFailed,
       },
       colored.neutrals,
+      { readThumb: readCachedThumb },
     );
 
     log(`wrote ${OUT_DIR}`);

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { hslToHex } from './hsl-to-hex.mjs';
 import { writeSpineFile } from './write-spine-file.mjs';
 import { attachTwins, findTwins } from './write-twins.mjs';
-import { writeCompositionFile } from './write-composition-file.mjs';
+import { writeLocatedSideFiles } from './write-located-side-files.mjs';
 import { writeWordsFile } from './write-words-file.mjs';
 import { writeErasFile } from './write-eras-file.mjs';
 
@@ -104,12 +104,15 @@ const byLigAsc = (a, b) => a.lig - b.lig || a.id.localeCompare(b.id);
  * the landing view used to make - the first screenful would have been one end
  * of the tonal range instead of a cross-section of it.
  */
-export async function writeNeutralFiles(items, outDir) {
+export function dealNeutrals(items) {
   const sorted = [...items].sort(byLigAsc);
   const pages = pageCount(sorted.length);
   const dealt = Array.from({ length: pages }, () => []);
   sorted.forEach((item, i) => dealt[i % pages].push(item));
+  return { sorted, pages, dealt };
+}
 
+export async function writeNeutralFiles({ sorted, pages, dealt }, outDir) {
   for (let page = 0; page < pages; page++) {
     const body =
       page === 0
@@ -120,26 +123,27 @@ export async function writeNeutralFiles(items, outDir) {
   return sorted.length;
 }
 
-/** Minified on purpose: pretty-printing this index costs ~30% more bytes in git and over the wire. */
-export async function writeBucketFiles(items, outDir, dropped = {}, neutrals = []) {
+/**
+ * Minified on purpose: pretty-printing this index costs ~30% more bytes in git
+ * and over the wire. `readThumb` is given by a real build and writes the mosaic.
+ */
+export async function writeBucketFiles(items, outDir, dropped = {}, neutrals = [], { readThumb } = {}) {
   await mkdir(outDir, { recursive: true });
   const buckets = buildBuckets(items);
   const twins = findTwins(buckets);
   attachTwins(buckets, twins);
-  // Where each work's primary entry landed, so a search result can be opened
-  // with one page fetch. Then the map comes off the entries: it belongs to the
-  // composition file, not to every bucket page.
-  const located = new Map();
-  for (const b of buckets) {
-    b.items.forEach((entry, index) => {
-      if (!located.has(entry.id) && !(entry.p ?? []).some((c) => c[3] > entry.pct)) {
-        located.set(entry.id, { bucket: b.bucket, page: Math.floor(index / PAGE_SIZE) });
-      }
-    });
-  }
-  const composition = await writeCompositionFile(items, (id) => located.get(id), outDir);
+  const dealt = dealNeutrals(neutrals);
+  const neutralPage = new Map(dealt.dealt.flatMap((page, p) => page.map((n) => [n.id, p])));
+  const { composition, histories, mosaic } = await writeLocatedSideFiles({
+    buckets, items, neutrals, neutralPage, pageSize: PAGE_SIZE, outDir, readThumb,
+  });
   const words = await writeWordsFile(items, outDir);
-  for (const b of buckets) for (const entry of b.items) delete entry.c;
+  // The composition map and the mean colour belong to their side files, not
+  // to every bucket page, spine entry and monochrome page.
+  for (const entry of [...buckets.flatMap((b) => b.items), ...items, ...neutrals]) {
+    delete entry.c;
+    delete entry.m;
+  }
   const all = buildAll(buckets);
 
   for (const b of buckets) {
@@ -158,7 +162,7 @@ export async function writeBucketFiles(items, outDir, dropped = {}, neutrals = [
   await writeFile(path.join(outDir, 'all.json'), JSON.stringify(all));
   // Deliberately not in all.json: the landing view is a walk through colour,
   // and greys would only dilute it.
-  const neutral = await writeNeutralFiles(neutrals, outDir);
+  const neutral = await writeNeutralFiles(dealt, outDir);
   const spine = await writeSpineFile(items, neutrals, outDir);
   const dated = await writeErasFile(items, neutrals, outDir);
   const bySource = {};
@@ -174,6 +178,8 @@ export async function writeBucketFiles(items, outDir, dropped = {}, neutrals = [
     spine,
     twins: twins.size,
     composition,
+    histories,
+    mosaic,
     words,
     dated,
     bySource,

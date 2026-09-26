@@ -1,16 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
 import { SAMPLE_EDGE, dominantColorFromPixels } from '../lib/image-colour';
+import { pixelsAt, readImageFile } from '../lib/read-image-file';
 import type { HueSelection } from '../lib/color-math';
 
 type Props = {
   onColour: (hue: HueSelection, lightness: number) => void;
 };
 
-/**
- * A picture the reader already has becomes a way into the collection. It is read
- * with FileReader and drawn to a canvas here in the page: nothing is uploaded,
- * no request is made, and a data: URL is what the CSP already allows.
- */
+/** A picture the reader already has becomes a way into the collection, read in the page. */
 export function ColourFromImage({ onColour }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -19,26 +16,13 @@ export function ColourFromImage({ onColour }: Props) {
     async (file: File) => {
       setError(null);
       try {
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result));
-          reader.onerror = () => reject(new Error('unreadable'));
-          reader.readAsDataURL(file);
-        });
-
-        const img = new Image();
-        img.src = dataUrl;
-        await img.decode();
-
+        const img = await readImageFile(file);
         const scale = Math.min(SAMPLE_EDGE / img.width, SAMPLE_EDGE / img.height);
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(img.width * scale));
-        canvas.height = Math.max(1, Math.round(img.height * scale));
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('no canvas');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = pixelsAt(
+          img,
+          Math.max(1, Math.round(img.width * scale)),
+          Math.max(1, Math.round(img.height * scale)),
+        );
         const colour = dominantColorFromPixels(data);
         if (!colour) {
           setError('Could not read that picture');

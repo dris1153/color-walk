@@ -1,5 +1,6 @@
 import sharp from 'sharp';
 import { hslToHex } from './hsl-to-hex.mjs';
+import { meanRgb } from './lab.mjs';
 
 export const SAMPLE_EDGE = 48;
 /** Near-black, near-white and grey pixels are canvas, varnish and frame, not colour. */
@@ -121,8 +122,10 @@ function runnersUp(acc, win) {
   return out.sort((a, b) => b[3] - a[3]).slice(0, MAX_PALETTE);
 }
 
-/** Returns { w, h, neutral, hue, sat, lig, hex, pct, p }, or null only when the
- *  image holds no pixels at all. `neutral` works carry a tone and no hue. */
+/** Returns { w, h, neutral, hue, sat, lig, hex, pct, p, m }, or null only when
+ *  the image holds no pixels at all. `neutral` works carry a tone and no hue.
+ *  `m` is the plain mean colour, which the mosaic picks its tiles by; the
+ *  bucket writer drops it before anything is written. */
 export async function extractDominantColor(buf) {
   const meta = await sharp(buf).metadata();
   const { data, info } = await sharp(buf)
@@ -133,5 +136,6 @@ export async function extractDominantColor(buf) {
 
   const color = dominantColorFromRaw(data, info.channels);
   if (!color) return null;
-  return { w: meta.width ?? info.width, h: meta.height ?? info.height, ...color };
+  const m = meanRgb(data, info.channels).map(Math.round);
+  return { w: meta.width ?? info.width, h: meta.height ?? info.height, ...color, m };
 }

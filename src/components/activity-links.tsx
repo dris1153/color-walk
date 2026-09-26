@@ -1,7 +1,7 @@
 import { ColourFromImage } from './colour-from-image';
 import type { HueSelection } from '../lib/color-math';
 
-export type Activity = 'walk' | 'play' | 'compose' | 'word' | 'eras';
+export type Activity = 'walk' | 'play' | 'compose' | 'word' | 'eras' | 'mosaic';
 
 type Props = {
   onColourFromImage: (hue: HueSelection, lightness: number) => void;
@@ -17,6 +17,7 @@ const LINKS: readonly [Activity, string][] = [
   ['compose', 'Arrange'],
   ['word', 'Words'],
   ['eras', 'Eras'],
+  ['mosaic', 'Mosaic'],
 ];
 
 /** The ways into the collection that are not the wheel. */
