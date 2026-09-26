@@ -1,17 +1,18 @@
 # Color Walk
 
-Pick a colour, then walk through the public-domain paintings that share it.
+Pick a colour, then walk through the public-domain works that share it.
 
-Dragging the hue wheel re-sorts a gallery of 6,048 works from the Metropolitan
-Museum of Art and the Cleveland Museum of Art by how close their dominant
-colour is to the one you picked. Tapping a work opens a full-screen deep-zoom
-viewer.
+Dragging the hue wheel re-sorts a gallery of works from the Metropolitan Museum
+of Art, the Cleveland Museum of Art, the Rijksmuseum and the National Gallery of
+Art by how close their dominant colour is to the one you picked, narrowed if you
+like to a kind of object, an era or a region. Tapping a work opens a full-screen
+deep-zoom viewer.
 
 ![Color Walk](public/og.png)
 
 The site is static. At runtime it calls no third-party API at all: it fetches
-colour-index JSON from its own origin and loads images from the two museums'
-CDNs. There is no backend, no database, no account, no cookie and no analytics.
+colour-index JSON from its own origin and loads images from the museums' own
+image servers. There is no backend, no database, no account, no cookie and no analytics.
 
 ## Running it
 
@@ -163,6 +164,53 @@ dropped at normalisation.
 If `import('sharp')` fails, run `npm rebuild sharp --foreground-scripts`. That
 is needed because `ignore-scripts=true` suppresses sharp's install script.
 
+### Four museums, and where the cold colours are
+
+`--source=` takes a comma list of `met`, `cma`, `rijks` and `nga`, and defaults
+to all four (`both` still means the first two). The wheel's cold half is thin
+because museums are warm: paintings, prints and paper measure brown and amber
+at every museum. Blue and turquoise live in glazes, faience and enamel, so the
+extra sources are aimed at those, by measurement (2026-09-26):
+
+| Flag | Default | What it reaches |
+|---|---|---|
+| `--met-queries=` | none | Met keyword searches across departments, each capped at 10,000 ids. `turquoise` measured 46% cold-hued, `faience` 42%, `enamel` 14%, against 0-5% for most departments |
+| `--rijks-sets=` | `260242,261188,261234,26191,261208` | Rijksmuseum OAI-PMH sets: Delftware, Dutch tin-glazed earthenware, kraak porcelain (73% cold), Middle Eastern ceramics, paintings |
+| `--nga-classes=` | `Painting,Sculpture,Decorative Art` | National Gallery of Art rows from its open-data CSVs on GitHub |
+
+The Rijksmuseum costs one request per 50 works and serves in-copyright images
+too, so a record is kept only under the Public Domain Mark or CC0. The NGA
+stage is four CSV downloads (~215 MB, kept in `.cache/nga/`, `--refresh-ids`
+fetches them again) and a join. Both serve IIIF, so their `big` is an
+`info.json` and the zoom viewer loads tiles instead of a master file.
+
+The fill-the-wheel run, resumable like any other:
+
+```bash
+npm run build:index -- --met-departments=11,6,14,21,10 --met-queries=turquoise,faience,enamel --cma-types=all
+```
+
+About 25,000 new Met objects at ~1.25 req/s (six hours or so), then the
+Rijksmuseum and NGA stages in minutes, then their thumbnails.
+
+### Year, kind and region
+
+Every work carries up to three facets, mapped at build time onto the short
+lists in `src/lib/facets.json` by `facet-tables.mjs`:
+
+- **`y`**, the middle of the dated span. 32% of Met works span more than a
+  century, so the midpoint is the one year fair to both ends.
+- **`k`**, one of twelve kinds, from the Met's 143 classifications, CMA's 60
+  types, the Rijksmuseum set and the NGA classification; the medium where a
+  department leaves the classification blank.
+- **`r`**, one of nine regions: a decisive department first (Egyptian Art is
+  the ancient world even where the culture field says "Egypt"), then the
+  culture, country and nationality words, then the department's own default.
+
+A work without a facet never matches a filter on it. Filters live in the hash
+(`#h=210&k=ceramic&e=1600&r=europe`), and a filtered grid fetches up to eight
+further pages by itself before asking whether to keep looking.
+
 ### Share cards and the per-hue pages
 
 `#h=210` is a fragment, so it never reaches a server and a crawler reading a
@@ -192,7 +240,8 @@ Every `npm run build:index` also writes, from the same items:
 | `spine.json` | 220 works reaching every hue and tone, for the walk and the games | ~14 kB |
 | `composition.json` | the ~33% of works whose 3x3 colour map varies, for search by arrangement | ~60 kB |
 | `words.json` | title words on >=40 works, each a 24-hue histogram | ~10 kB |
-| `twin` on each entry | the nearest colour at the other museum, in the same bucket | ~20 B/work |
+| `eras.json` | per era, the works by the hue they lead with, plus the monochrome count | ~3 kB |
+| `twin` on each entry | the nearest colour at another museum, in the same bucket | ~20 B/work |
 
 `npm run verify:index` checks each against the bucket pages it points into.
 
@@ -226,17 +275,23 @@ to the bottom. A well-populated hue still costs exactly one request.
 
 ## Attribution
 
-Images and data: **The Metropolitan Museum of Art Open Access (CC0)** and
-**Cleveland Museum of Art Open Access (CC0)**.
+Images and data: **The Metropolitan Museum of Art Open Access (CC0)**,
+**Cleveland Museum of Art Open Access (CC0)**, **Rijksmuseum Data Services (CC0
+metadata, Public Domain Mark images)** and **National Gallery of Art Open Access
+(CC0)**.
 
 - https://www.metmuseum.org/about-the-met/policies-and-documents/open-access
 - https://www.clevelandart.org/open-access
+- https://data.rijksmuseum.nl/
+- https://github.com/NationalGalleryOfArt/opendata
 
 The build enforces the licence rather than assuming it: a Met object is kept
-only when `isPublicDomain === true`, and a Cleveland artwork only when
-`share_license_status === 'CC0'`.
+only when `isPublicDomain === true`, a Cleveland artwork only when
+`share_license_status === 'CC0'`, a Rijksmuseum record only under the Public
+Domain Mark or CC0, and an NGA work only when its primary image is flagged
+`openaccess`.
 
-Visitors' browsers contact the two museum CDNs to fetch images, which is
+Visitors' browsers contact the museums' image servers to fetch images, which is
 unavoidable for a site that shows their pictures. Fonts are self-hosted, so no
 font CDN sees a visitor either.
 
@@ -258,9 +313,9 @@ the challenge. The check is the browser smoke below.
 
 ## The pre-deploy check that matters
 
-Before every deploy, load the site and confirm that one Met thumbnail and one
-Cleveland thumbnail both paint, both return HTTP 200, and neither response
-carries a `Cf-Mitigated` header. This is precisely the check the Art Institute
+Before every deploy, load the site and confirm that one thumbnail from each
+museum (Met, Cleveland, `iiif.micr.io` for the Rijksmuseum, `api.nga.gov` for
+the NGA) paints, returns HTTP 200, and carries no `Cf-Mitigated` header. This is precisely the check the Art Institute
 failed, and it is how you would learn that another museum had started blocking
 embeds, instead of shipping a grid of coloured rectangles.
 
@@ -289,7 +344,8 @@ There is no `dangerouslySetInnerHTML` anywhere in the repository.
 
 ## Not included
 
-Art Institute of Chicago, IIIF tiling of any kind, client-side palette
+Art Institute of Chicago, IIIF tiling for the Met and Cleveland (their hosts
+serve single files), client-side palette
 extraction, AI captions, word-association lookups, a sky or time-of-day palette
 mode, favourites, accounts, and any backend. Each was considered and left out;
 `plans/` records why, and what would have to change to revisit it.

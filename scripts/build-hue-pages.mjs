@@ -60,7 +60,7 @@ async function main() {
         origin,
         slug: String(hue),
         title: `${name} - Color Walk`,
-        description: `Public-domain works in ${name.toLowerCase()}, from the Metropolitan Museum of Art and the Cleveland Museum of Art.`,
+        description: `Public-domain works in ${name.toLowerCase()}, from the Met, the Cleveland Museum of Art, the Rijksmuseum and the National Gallery of Art.`,
         image: `/og/${file}`,
       }),
     );

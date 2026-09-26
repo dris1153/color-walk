@@ -16,10 +16,12 @@ describe('crawl control', () => {
   });
 
   it('stops once the time limit passes', async () => {
-    const c = control({ minutes: 1 / 60_000 }); // 1ms
+    // 100ms, not 1ms: under a loaded test run creating the control alone can
+    // take a millisecond, and the "not yet" check then saw the deadline passed.
+    const c = control({ minutes: 100 / 60_000 });
     try {
       expect(c.stopped).toBe(false);
-      await new Promise((r) => setTimeout(r, 20));
+      await new Promise((r) => setTimeout(r, 250));
       expect(c.stopped).toBe(true);
       expect(c.reason).toBe('reached the --minutes limit');
     } finally {

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatViewHash, parseViewHash, parseViewLocation, type ViewState } from '../lib/view-hash';
 import type { HueSelection } from '../lib/color-math';
+import type { Filter } from '../lib/facets';
 
 /** Safari throttles history writes to ~100 per 30 s, so never write per pointermove. */
 const COMMIT_THROTTLE_MS = 300;
@@ -13,6 +14,8 @@ export function useViewFromUrlHash(): {
   tone: number | null;
   setHue: (h: HueSelection) => void;
   setTone: (l: number | null) => void;
+  filter: Filter;
+  setFilter: (next: Partial<Filter>) => void;
   /**
    * Pass the changed part when committing in the same tick as a setter; React
    * has not re-rendered yet, so without it the previous value would be written
@@ -36,6 +39,23 @@ export function useViewFromUrlHash(): {
 
   const setHue = useCallback((hue: HueSelection) => setView((v) => ({ ...v, hue })), []);
   const setTone = useCallback((tone: number | null) => setView((v) => ({ ...v, tone })), []);
+  // null clears a facet; the view keeps it absent rather than null, as the hash does.
+  const setFilter = useCallback(
+    (next: Partial<Filter>) =>
+      setView((v) => {
+        const out = { ...v };
+        for (const [field, value] of Object.entries(next) as [keyof Filter, string | null][]) {
+          if (value === null) delete out[field];
+          else out[field] = value;
+        }
+        return out;
+      }),
+    [],
+  );
+  const filter = useMemo<Filter>(
+    () => ({ kind: view.kind ?? null, era: view.era ?? null, region: view.region ?? null }),
+    [view.kind, view.era, view.region],
+  );
 
   const write = useCallback(() => {
     lastCommit.current = Date.now();
@@ -77,7 +97,13 @@ export function useViewFromUrlHash(): {
     const onHashChange = () => {
       const next = parseViewHash(window.location.hash);
       setView((current) =>
-        current.hue === next.hue && current.tone === next.tone ? current : next,
+        current.hue === next.hue &&
+        current.tone === next.tone &&
+        current.kind === next.kind &&
+        current.era === next.era &&
+        current.region === next.region
+          ? current
+          : next,
       );
     };
     window.addEventListener('hashchange', onHashChange);
@@ -87,5 +113,5 @@ export function useViewFromUrlHash(): {
     };
   }, []);
 
-  return { hue: view.hue, tone: view.tone, setHue, setTone, commitHash, pushHash };
+  return { hue: view.hue, tone: view.tone, setHue, setTone, filter, setFilter, commitHash, pushHash };
 }

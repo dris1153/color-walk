@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd">
+  <responseDate>2026-09-26T04:29:54Z</responseDate>
+  <request set="260242" metadataPrefix="edm" from="1900-01-01T00:00:00Z" until="2026-09-26T04:29:54Z">https://data.rijksmuseum.nl/oai</request>
+  <ListRecords>
+    <record>
+      <header>
+        <identifier>https://id.rijksmuseum.nl/200112191</identifier>
+        <datestamp>2026-06-23T17:40:08Z</datestamp>
+        <setSpec>260212</setSpec>
+        <setSpec>260242</setSpec>
+        <setSpec>260239</setSpec>
+        <setSpec>261188</setSpec>
+        <setSpec>260251</setSpec>
+      </header>
+      <metadata>
+        <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:edm="http://www.europeana.eu/schemas/edm/" xmlns:ore="http://www.openarchives.org/ore/terms/" xmlns:owl="http://www.w3.org/2002/07/owl#" xmlns:rdaGr2="http://rdvocab.info/ElementsGr2/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:skos="http://www.w3.org/2004/02/skos/core#" xmlns:svcs="http://rdfs.org/sioc/services#" xmlns:wgs84_pos="http://www.w3.org/2003/01/geo/wgs84_pos#">
+          <ore:Aggregation rdf:about="https://id.rijksmuseum.nl/200112191#aggregation">
+            <edm:aggregatedCHO rdf:resource="https://id.rijksmuseum.nl/200112191"/>
+            <edm:dataProvider rdf:resource="https://id.rijksmuseum.nl/2109266"/>
+            <edm:isShownAt rdf:resource="https://www.rijksmuseum.nl/nl/collectie/object/BK-18748--c0f3b5141ed8abdeb9e646569f43f6b4"/>
+            <edm:isShownBy rdf:resource="https://iiif.micr.io/zNDdr/full/max/0/default.jpg"/>
+            <edm:object rdf:resource="https://iiif.micr.io/zNDdr/full/max/0/default.jpg"/>
+            <edm:provider rdf:resource="https://id.rijksmuseum.nl/2109266"/>
+            <edm:rights rdf:resource="http://creativecommons.org/publicdomain/mark/1.0/"/>
+          </ore:Aggregation>
+          <edm:ProvidedCHO rdf:about="https://id.rijksmuseum.nl/200112191">
+            <dcterms:created xml:lang="en">c. 1670 - c. 1700</dcterms:created>
+            <dcterms:created xml:lang="nl">ca. 1670 - ca. 1700</dcterms:created>
+            <dc:type rdf:resource="https://id.rijksmuseum.nl/220667"/>
+            <dc:identifier>BK-18748</dc:identifier>
+            <dcterms:isPartOf rdf:resource="https://id.rijksmuseum.nl/260212"/>
+            <dcterms:isPartOf rdf:resource="https://id.rijksmuseum.nl/260239"/>
+            <dcterms:isPartOf rdf:resource="https://id.rijksmuseum.nl/260242"/>
+            <dcterms:isPartOf rdf:resource="https://id.rijksmuseum.nl/260251"/>
+            <dcterms:isPartOf rdf:resource="https://id.rijksmuseum.nl/261188"/>
+            <dc:creator rdf:resource="https://id.rijksmuseum.nl/21045588"/>
+            <dc:relation rdf:resource="https://id.rijksmuseum.nl/200902682"/>
+            <dc:subject rdf:resource="https://id.rijksmuseum.nl/221227"/>
+            <dc:subject rdf:resource="https://id.rijksmuseum.nl/2302147"/>
+            <dc:title xml:lang="en">Plaat met een gezicht op Overschie bij Rotterdam</dc:title>
+            <dc:title xml:lang="en">Plaque with a View of Overschie near Rotterdam</dc:title>
+            <dc:title xml:lang="nl">Plaat met een gezicht op Overschie bij Rotterdam</dc:title>
+            <dc:title xml:lang="nl">Plaque with a View of Overschie near Rotterdam</dc:title>
+            <dcterms:extent xml:lang="en">height 45 cm x width 60 cm</dcterms:extent>
+            <dcterms:extent xml:lang="nl">hoogte 45 cm x breedte 60 cm</dcterms:extent>
+            <dcterms:isReferencedBy rdf:resource="https://id.rijksmuseum.nl/301107511"/>
+            <dcterms:isReferencedBy rdf:resource="https://id.rijksmuseum.nl/301283482"/>
+            <dcterms:isReferencedBy rdf:resource="https://id.rijksmuseum.nl/301283486"/>
+            <dcterms:medium rdf:resource="https://id.rijksmuseum.nl/220114"/>
+            <dcterms:medium rdf:resource="https://id.rijksmuseum.nl/2201227"/>
+            <dcterms:medium rdf:resource="https://id.rijksmuseum.nl/2201403"/>
+            <dcterms:spatial rdf:resource="https://id.rijksmuseum.nl/230132"/>
+            <edm:currentLocation rdf:resource="https://id.rijksmuseum.nl/2301886"/>
+            <edm:type>IMAGE</edm:type>
+          </edm:ProvidedCHO>
+          <edm:Agent rdf:about="https://id.rijksmuseum.nl/21045588">
+            <skos:prefLabel xml:lang="en">Frederik van Frytom</skos:prefLabel>
+            <skos:prefLabel xml:lang="nl">Frederik van Frytom</skos:prefLabel>
+            <skos:altLabel xml:lang="en">Frytom, Frederik van</skos:altLabel>
+            <skos:altLabel xml:lang="nl">Frytom, Frederik van</skos:altLabel>
+            <rdaGr2:professionOrOccupation rdf:resource="https://id.rijksmuseum.nl/2205484"/>
+          </edm:Agent>
+          <edm:Agent rdf:about="https://id.rijksmuseum.nl/2109266">
+            <skos:prefLabel xml:lang="en">Rijksmuseum Amsterdam</skos:prefLabel>
+            <skos:prefLabel xml:lang="nl">Rijksmuseum Amsterdam</skos:prefLabel>
+          </edm:Agent>
+          <edm:Place rdf:about="https://id.rijksmuseum.nl/230132">
+            <wgs84_pos:lat>4.366667</wgs84_pos:lat>
+            <wgs84_pos:long>52</wgs84_pos:long>
+            <skos:prefLabel xml:lang="en">Delft</skos:prefLabel>
+            <skos:prefLabel xml:lang="nl">Delft</skos:prefLabel>
+            <owl:sameAs rdf:resource="http://vocab.getty.edu/tgn/7006804"/>
+            <owl:sameAs rdf:resource="http://www.wikidata.org/entity/Q690"/>
+          </edm:Place>
+          <edm:Place rdf:about="https://id.rijksmuseum.nl/2301886">
+            <skos:prefLabel>Rijksmuseum</skos:prefLabel>
+          </edm:Place>
+          <edm:Place rdf:about="https://id.rijksmuseum.nl/2302147">
+            <wgs84_pos:lat>4.4333</wgs84_pos:lat>
+            <wgs84_pos:long>51.9333</wgs84_pos:long>
+            <skos:prefLabel xml:lang="en">Overschie</skos:prefLabel>
+            <skos:prefLabel xml:lang="nl">Overschie</skos:prefLabel>
+            <owl:sameAs rdf:resource="http://vocab.getty.edu/tgn/1005292"/>
+            <owl:sameAs rdf:resource="http://www.wikidata.org/entity/Q2389241"/>
+          </edm:Place>
+          <edm:WebResource rdf:about="https://iiif.micr.io/zNDdr/full/max/0/default.jpg">
+            <svcs:has_service rdf:resource="https://iiif.micr.io/zNDdr"/>
+          </edm:WebResource>
+          <edm:WebResource rdf:about="https://www.rijksmuseum.nl/nl/collectie/object/BK-18748--c0f3b5141ed8abdeb9e646569f43f6b4">
+            <dc:format>text/html</dc:format>
+            <dc:type rdf:resource="http://purl.org/dc/dcmitype/InteractiveResource"/>
+            <dc:language>nl</dc:language>
+          </edm:WebResource>
+          <skos:Concept rdf:about="https://id.rijksmuseum.nl/220114">
+            <skos:prefLabel xml:lang="en">earthenware</skos:prefLabel>
+            <skos:prefLabel xml:lang="nl">aardewerk (materiaal)</skos:prefLabel>
+            <skos:altLabel xml:lang="nl">gebakken aarde</skos:altLabel>
+          </skos:Concept>
+          <skos:Concept rdf:about="https://id.rijksmuseum.nl/2201227">
+            <skos:prefLabel xml:lang="en">tin glaze</skos:prefLabel>
+            <skos:prefLabel xml:lang="nl">tinglazuur</skos:prefLabel>
+          </skos:Concept>
+          <skos:Concept rdf:about="https://id.rijksmuseum.nl/2201403">
+            <skos:prefLabel xml:lang="nl">faience</skos:prefLabel>
+          </skos:Concept>
+          <skos:Concept rdf:about="https://id.rijksmuseum.nl/2205484">
+            <skos:prefLabel xml:lang="nl">plateelschilder</skos:prefLabel>
+          </skos:Concept>
+          <skos:Concept rdf:about="https://id.rijksmuseum.nl/220667">
+            <skos:prefLabel xml:lang="nl">plaat</skos:prefLabel>
+          </skos:Concept>
+          <skos:Concept rdf:about="https://id.rijksmuseum.nl/221227">
+            <skos:prefLabel xml:lang="en">landscape with bridge, viaduct or aqueduct</skos:prefLabel>
+            <skos:altLabel>25I6</skos:altLabel>
+            <skos:exactMatch rdf:resource="https://iconclass.org/25I6"/>
+          </skos:Concept>
+          <skos:Concept rdf:about="https://id.rijksmuseum.nl/260212">
+            <skos:prefLabel xml:lang="en">RijksXL</skos:prefLabel>
+            <skos:prefLabel xml:lang="nl">RijksXL</skos:prefLabel>
+            <skos:broader rdf:resource="https://linked.art/ns/terms/Set"/>
+          </skos:Concept>
+          <skos:Concept rdf:about="https://id.rijksmuseum.nl/260239">
+            <skos:prefLabel xml:lang="nl">Entire Public Domain Set</skos:prefLabel>
+            <skos:broader rdf:resource="https://linked.art/ns/terms/Set"/>
+          </skos:Concept>
+          <skos:Concept rdf:about="https://id.rijksmuseum.nl/260242">
+            <skos:prefLabel xml:lang="en">Dutch Delftware</skos:prefLabel>
+            <skos:prefLabel xml:lang="nl">Delfts aardewerk</skos:prefLabel>
+            <skos:broader rdf:resource="https://linked.art/ns/terms/Set"/>
+          </skos:Concept>
+          <skos:Concept rdf:about="https://id.rijksmuseum.nl/260251">
+            <skos:prefLabel xml:lang="en">All published objects</skos:prefLabel>
+            <skos:prefLabel xml:lang="nl">Alle gepubliceerde objecten</skos:prefLabel>
+            <skos:broader rdf:resource="https://linked.art/ns/terms/Set"/>
+          </skos:Concept>
+          <skos:Concept rdf:about="https://id.rijksmuseum.nl/261188">
+            <skos:prefLabel xml:lang="en">Dutch tin-glazed earthenware</skos:prefLabel>
+            <skos:prefLabel xml:lang="nl">Nederlands tinglazuur aardewerk</skos:prefLabel>
+            <skos:broader rdf:resource="https://linked.art/ns/terms/Set"/>
+          </skos:Concept>
+          <svcs:Service rdf:about="https://iiif.micr.io/zNDdr">
+            <dcterms:conformsTo rdf:resource="http://iiif.io/api/image"/>
+          </svcs:Service>
+        </rdf:RDF>
+      </metadata>
+    </record>
+<resumptionToken completeListSize="1515">bWV0YWRhdGFQcmVmaXg9ZWRtJmZyb209MTkwMC0wMS0wMVQwMCUzQTAwJTNBMDBaJnVudGlsPTIwMjYtMDktMjZUMDQlM0EyOSUzQTU0WiZzZXQ9MjYwMjQyJmM9MjAwMTEyMjQxJnM9MTUxNQ==</resumptionToken>
+</ListRecords></OAI-PMH>

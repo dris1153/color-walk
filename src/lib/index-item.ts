@@ -1,5 +1,7 @@
 import { isAllowedImageUrl } from './image-url';
 import { BUCKET_COUNT } from './color-math';
+import { isKind, isRegion } from './facets';
+import { isSource, type Source } from './museums';
 
 /**
  * What one entry of the index looks like, and the gate every entry passes
@@ -17,7 +19,7 @@ export type Twin = { id: string; bucket: number; page: number };
 
 export type Item = {
   id: string;
-  src: 'met' | 'cma';
+  src: Source;
   t: string;
   a: string;
   d: string;
@@ -35,6 +37,11 @@ export type Item = {
   credit: string;
   p?: PaletteEntry[];
   twin?: Twin;
+  /** Representative year (the middle of the dated span), when the museum gives one. */
+  y?: number;
+  /** Kind and region ids from facets.json. */
+  k?: string;
+  r?: string;
 };
 
 
@@ -66,6 +73,8 @@ export function isItem(x: unknown): x is Item {
   const i = x as Record<string, unknown>;
   return (
     typeof i.id === 'string' &&
+    // src names the museum in the overlay, so an unknown one is not shown at all.
+    isSource(i.src) &&
     typeof i.thumb === 'string' &&
     typeof i.hue === 'number' &&
     i.hue >= 0 &&
@@ -79,6 +88,9 @@ export function isItem(x: unknown): x is Item {
     HEX.test(i.hex) &&
     isAllowedImageUrl(i.thumb) &&
     (i.p === undefined || isPalette(i.p)) &&
-    (i.twin === undefined || isTwin(i.twin))
+    (i.twin === undefined || isTwin(i.twin)) &&
+    (i.y === undefined || Number.isInteger(i.y)) &&
+    (i.k === undefined || isKind(i.k)) &&
+    (i.r === undefined || isRegion(i.r))
   );
 }

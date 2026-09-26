@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import OpenSeadragon from 'openseadragon';
+import { isIiifService } from '../lib/image-url';
 
 type Props = {
   bigUrl: string;
@@ -33,13 +34,17 @@ export default function ArtworkDeepZoomViewer({ bigUrl, onFirstPaint, onFail }: 
       //   crossOriginPolicy stays unset - adding a crossorigin attribute would
       //     make the Met refuse to serve the image at all.
       drawer: 'canvas',
-      tileSources: {
-        type: 'image',
-        url: bigUrl,
-        buildPyramid: false,
-        // @types/openseadragon 6.0.0 omits buildPyramid from the image tile
-        // source even though ImageTileSource has long accepted it.
-      } as unknown as OpenSeadragon.Options['tileSources'],
+      // A IIIF service (Rijksmuseum, NGA) is handed over as its info.json and
+      // OSD fetches only the tiles in view; a plain master file is one image.
+      tileSources: isIiifService(bigUrl)
+        ? bigUrl
+        : ({
+            type: 'image',
+            url: bigUrl,
+            buildPyramid: false,
+            // @types/openseadragon 6.0.0 omits buildPyramid from the image tile
+            // source even though ImageTileSource has long accepted it.
+          } as unknown as OpenSeadragon.Options['tileSources']),
       tabIndex: -1,
       showNavigator: false,
       showNavigationControl: false,

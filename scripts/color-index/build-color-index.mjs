@@ -4,9 +4,12 @@ import path from 'node:path';
 import { pool } from './http-util.mjs';
 import { acquireLock, createControl } from './crawl-control.mjs';
 import { readRecords } from './jsonl-cache.mjs';
-import { DEFAULT_MET_DEPARTMENTS, MET_CACHE, fetchMetObjects } from './fetch-met-objects.mjs';
-import { CMA_CACHE, DEFAULT_CMA_TYPES, fetchCmaArtworks } from './fetch-cma-artworks.mjs';
-import { normalizeArtwork } from './normalize-artwork.mjs';
+import { parseArgs } from './build-args.mjs';
+import { MET_CACHE, fetchMetObjects } from './fetch-met-objects.mjs';
+import { CMA_CACHE, CMA_LEGACY_CACHE, fetchCmaArtworks } from './fetch-cma-artworks.mjs';
+import { RIJKS_CACHE, fetchRijksRecords } from './fetch-rijks-records.mjs';
+import { NGA_CACHE, fetchNgaObjects } from './fetch-nga-objects.mjs';
+import { SOURCES, normalizeArtwork } from './normalize-artwork.mjs';
 import { downloadThumbnails, readCachedThumb } from './download-thumbnails.mjs';
 import { extractDominantColor } from './extract-dominant-color.mjs';
 import { extractComposition } from './extract-composition.mjs';
@@ -19,49 +22,37 @@ const stamp = (msg) => {
   console.log(`[${s}s] ${msg}`);
 };
 
-const numberList = (value) => value.split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
-
-function parseArgs(argv) {
-  const args = {
-    source: 'both',
-    limit: Infinity,
-    metDepartments: DEFAULT_MET_DEPARTMENTS,
-    cmaTypes: DEFAULT_CMA_TYPES,
-    minutes: 0,
-    refreshIds: argv.includes('--refresh-ids'),
-  };
-  for (const arg of argv) {
-    const m = /^--([a-z-]+)=(.+)$/.exec(arg);
-    if (!m) continue;
-    if (m[1] === 'source') args.source = m[2];
-    else if (m[1] === 'limit') args.limit = Number(m[2]);
-    else if (m[1] === 'minutes') args.minutes = Number(m[2]);
-    else if (m[1] === 'met-departments') args.metDepartments = numberList(m[2]);
-    else if (m[1] === 'cma-types') args.cmaTypes = m[2].split(',').filter(Boolean);
-  }
-  if (!['both', 'met', 'cma'].includes(args.source)) throw new Error(`bad --source=${args.source}`);
-  if (!(args.limit > 0)) throw new Error('--limit must be a positive number');
-  if (!(args.minutes >= 0)) throw new Error('--minutes must be a positive number');
-  if (args.metDepartments.length === 0) throw new Error('--met-departments must list department ids');
-  return args;
-}
-
 /**
  * Streams the raw caches rather than loading them: at 60k Met objects the
  * combined raw JSON is ~148 MB, and only the normalised item is worth keeping.
  */
-async function normalizeAll({ source, limit }) {
+async function normalizeAll({ sources, limit }) {
   const byId = new Map();
   let dropped = 0;
+  // The old CMA cache speaks only for types the new one has not reached: a work
+  // missing from a refetched type has left CC0 or the catalogue, and its old
+  // record must not bring it back.
+  const fresh = { ids: new Set(), types: new Set() };
+  for await (const record of readRecords(CMA_CACHE)) {
+    if (!record?.o) continue;
+    fresh.ids.add(String(record.o.id));
+    fresh.types.add(record.o.type);
+  }
+  const superseded = (o) => fresh.ids.has(String(o.id)) || fresh.types.has(o.type);
+  // First sighting of an id wins, so the richer CMA cache is read before the old one.
   const files = [
     ['met', MET_CACHE],
     ['cma', CMA_CACHE],
-  ].filter(([src]) => source === 'both' || source === src);
+    ['cma', CMA_LEGACY_CACHE],
+    ['rijks', RIJKS_CACHE],
+    ['nga', NGA_CACHE],
+  ].filter(([src]) => sources.includes(src));
 
   for (const [src, file] of files) {
     let seen = 0;
     for await (const record of readRecords(file)) {
       if (!record?.o || seen >= limit) continue;
+      if (file === CMA_LEGACY_CACHE && superseded(record.o)) continue;
       seen++;
       const item = normalizeArtwork(record.o, src);
       if (!item) dropped++;
@@ -99,6 +90,24 @@ async function colorizeAll(items, log) {
   };
 }
 
+/** Each museum's own fetch, in turn; a stop skips the rest and the index is
+ *  written from whatever is cached. */
+async function fetchSources(args, control, log) {
+  const { sources, limit, refreshIds } = args;
+  if (sources.includes('met')) {
+    await fetchMetObjects({ departments: args.metDepartments, queries: args.metQueries, limit, refreshIds, control, log });
+  }
+  if (sources.includes('cma') && !control.stopped) {
+    await fetchCmaArtworks({ types: args.cmaTypes, limit, control, log });
+  }
+  if (sources.includes('rijks') && !control.stopped) {
+    await fetchRijksRecords({ sets: args.rijksSets, limit, control, log });
+  }
+  if (sources.includes('nga') && !control.stopped) {
+    await fetchNgaObjects({ classes: args.ngaClasses, limit, refresh: refreshIds, control, log });
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const command = ['npm run build:index --', ...process.argv.slice(2)].join(' ');
@@ -107,25 +116,15 @@ async function main() {
   const control = createControl({ minutes: args.minutes, command, log: stamp });
   // Everything below logs through the control, so it also lands in crawl.log.
   const log = control.log;
-  log(`build:index source=${args.source} limit=${args.limit} minutes=${args.minutes || 'unbounded'} pid=${process.pid}`);
-  log(`met departments ${args.metDepartments.join(',')}, cma types ${args.cmaTypes.join(',')}`);
-  if (args.source !== 'both' || args.limit !== Infinity) {
+  log(`build:index sources=${args.sources.join(',')} limit=${args.limit} minutes=${args.minutes || 'unbounded'} pid=${process.pid}`);
+  log(`met departments ${args.metDepartments.join(',')} queries ${args.metQueries.join(',') || '-'}, cma types ${args.cmaTypes.join(',')}`);
+  log(`rijks sets ${args.rijksSets.join(',')}, nga classes ${args.ngaClasses.join(',')}`);
+  if (args.sources.length < SOURCES.length || args.limit !== Infinity) {
     log('WARNING: partial run - public/index will not be a complete index');
   }
 
   try {
-    if (args.source !== 'cma') {
-      await fetchMetObjects({
-        departments: args.metDepartments,
-        limit: args.limit,
-        refreshIds: args.refreshIds,
-        control,
-        log,
-      });
-    }
-    if (args.source !== 'met') {
-      await fetchCmaArtworks({ types: args.cmaTypes, limit: args.limit, control, log });
-    }
+    await fetchSources(args, control, log);
 
     const normalized = await normalizeAll(args);
     log(`normalized ${normalized.items.length}, dropped ${normalized.dropped} in validation`);

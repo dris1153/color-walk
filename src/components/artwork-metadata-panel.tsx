@@ -1,7 +1,10 @@
 import { isAllowedPageUrl } from '../lib/image-url';
 import { nearestColorName } from '../lib/color-name-table';
 import { hslToHex } from '../lib/color-math';
+import type { Filter } from '../lib/facets';
+import { museumName } from '../lib/museums';
 import type { Item } from '../lib/color-index-client';
+import { ArtworkFacetChips } from './artwork-facet-chips';
 
 type Props = {
   item: Item;
@@ -11,11 +14,10 @@ type Props = {
   onCompare: () => void;
   isSaved: boolean;
   onToggleSave: (item: Item) => void;
-  onBrowseColour: (hue: number, lightness: number) => void;
+  onBrowseColour: (hue: number, lightness: number, facet?: Filter) => void;
   onOpen: (item: Item) => void;
 };
 
-const MUSEUM = { met: 'the Metropolitan Museum', cma: 'the Cleveland Museum' } as const;
 const TOGGLE_CLASS =
   'self-start border border-ink/25 px-3 py-1.5 font-mono text-[11px] tracking-widest uppercase text-ink/70 hover:text-ink aria-pressed:border-ink/60 aria-pressed:text-ink';
 
@@ -40,6 +42,8 @@ export function ArtworkMetadataPanel({
         <p className="mt-1 text-sm text-ink/70">{item.a}</p>
         {item.d && <p className="text-sm text-ink/50">{item.d}</p>}
       </div>
+
+      <ArtworkFacetChips item={item} onBrowse={(facet) => onBrowseColour(item.hue, item.lig, facet)} />
 
       {/* The colour is the way back to the wheel: without it a work is a dead
           end, closable but with no route to anything like it. */}
@@ -89,7 +93,7 @@ export function ArtworkMetadataPanel({
           />
           <span className="min-w-0">
             <span className="block font-mono text-[10px] tracking-widest uppercase text-ink/40">
-              Its twin at {MUSEUM[twin.src]}
+              Its twin at {museumName(twin.src)}
             </span>
             <span className="block truncate text-sm text-ink group-hover:underline">{twin.t}</span>
             <span className="block font-mono text-[10px] text-ink/50">{twin.hex}</span>

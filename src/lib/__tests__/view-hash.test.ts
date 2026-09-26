@@ -121,3 +121,29 @@ describe('parseViewLocation - the per-hue pages', () => {
     }
   });
 });
+
+describe('facet filters in the hash', () => {
+  it('reads kind, era and region beside hue and tone', () => {
+    expect(parseViewHash('#h=210&l=40&k=ceramic&e=1600&r=europe')).toEqual({
+      hue: 210,
+      tone: 40,
+      kind: 'ceramic',
+      era: '1600',
+      region: 'europe',
+    });
+  });
+
+  it('drops ids the build never wrote, so a hand-edited link cannot invent a filter', () => {
+    expect(parseViewHash('#h=210&k=spaceship&e=1650&r=mars')).toEqual({ hue: 210, tone: null });
+  });
+
+  it('writes facets after hue and tone, and round-trips', () => {
+    const view = { hue: 'grey' as const, tone: null, kind: 'print', era: 'bce' };
+    expect(formatViewHash(view)).toBe('#h=grey&k=print&e=bce');
+    expect(parseViewHash(formatViewHash(view))).toEqual(view);
+  });
+
+  it('lets a facet-only fragment narrow the page colour rather than replace it', () => {
+    expect(parseViewLocation('/c/210', '#k=glass')).toEqual({ hue: 210, tone: null, kind: 'glass' });
+  });
+});

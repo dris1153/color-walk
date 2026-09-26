@@ -1,0 +1,41 @@
+{
+  "kinds": [
+    { "id": "painting", "label": "Painting" },
+    { "id": "drawing", "label": "Drawing" },
+    { "id": "print", "label": "Print" },
+    { "id": "book", "label": "Book & manuscript" },
+    { "id": "photo", "label": "Photograph" },
+    { "id": "ceramic", "label": "Ceramic" },
+    { "id": "glass", "label": "Glass" },
+    { "id": "textile", "label": "Textile & dress" },
+    { "id": "sculpture", "label": "Sculpture & carving" },
+    { "id": "metal", "label": "Metalwork" },
+    { "id": "jewellery", "label": "Jewellery" },
+    { "id": "other", "label": "Other objects" }
+  ],
+  "regions": [
+    { "id": "europe", "label": "Europe" },
+    { "id": "americas", "label": "Americas" },
+    { "id": "east-asia", "label": "East Asia" },
+    { "id": "south-asia", "label": "South Asia" },
+    { "id": "se-asia", "label": "Southeast Asia" },
+    { "id": "west-asia", "label": "Middle East & Central Asia" },
+    { "id": "africa", "label": "Africa" },
+    { "id": "oceania", "label": "Oceania" },
+    { "id": "ancient", "label": "Ancient Mediterranean" }
+  ],
+  "eras": [
+    { "id": "early", "label": "Before 1000 BCE", "from": -100000, "to": -1000 },
+    { "id": "bce", "label": "1000–1 BCE", "from": -1000, "to": 1 },
+    { "id": "1", "label": "1–499", "from": 1, "to": 500 },
+    { "id": "500", "label": "500–999", "from": 500, "to": 1000 },
+    { "id": "1000", "label": "1000–1299", "from": 1000, "to": 1300 },
+    { "id": "1300", "label": "1300s", "from": 1300, "to": 1400 },
+    { "id": "1400", "label": "1400s", "from": 1400, "to": 1500 },
+    { "id": "1500", "label": "1500s", "from": 1500, "to": 1600 },
+    { "id": "1600", "label": "1600s", "from": 1600, "to": 1700 },
+    { "id": "1700", "label": "1700s", "from": 1700, "to": 1800 },
+    { "id": "1800", "label": "1800s", "from": 1800, "to": 1900 },
+    { "id": "1900", "label": "Since 1900", "from": 1900, "to": 2101 }
+  ]
+}

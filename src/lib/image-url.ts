@@ -1,6 +1,9 @@
+// Kept in step with scripts/color-index/normalize-shared.mjs and the CSP in vercel.json.
 export const ALLOWED_IMAGE_HOSTS = [
   'images.metmuseum.org',
   'openaccess-cdn.clevelandart.org',
+  'iiif.micr.io',
+  'api.nga.gov',
 ] as const;
 
 // CMA's API returns bare clevelandart.org, the Met returns www. Both spellings allowed.
@@ -8,7 +11,12 @@ export const ALLOWED_PAGE_HOSTS = [
   'www.metmuseum.org',
   'www.clevelandart.org',
   'clevelandart.org',
+  'www.rijksmuseum.nl',
+  'www.nga.gov',
 ] as const;
+
+/** A IIIF image service rather than a single file: the zoom viewer walks its tiles. */
+export const isIiifService = (u: string): boolean => isAllowedImageUrl(u) && u.endsWith('/info.json');
 
 function isAllowedOn(u: string, hosts: readonly string[]): boolean {
   let parsed: URL;

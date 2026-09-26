@@ -4,6 +4,7 @@ import path from 'node:path';
 import { ALLOWED_IMAGE_HOSTS, ALLOWED_PAGE_HOSTS } from './normalize-artwork.mjs';
 import { BUCKET_COUNT, hueToBucket, pageCount } from './write-bucket-files.mjs';
 import { MAX_PALETTE } from './extract-dominant-color.mjs';
+import { KIND_IDS, REGION_IDS } from './facet-tables.mjs';
 import { verifySideFiles } from './verify-side-files.mjs';
 
 const INDEX_DIR = path.join(import.meta.dirname, '..', '..', 'public', 'index');
@@ -37,6 +38,9 @@ function checkItem(item, bucket, fail) {
       item.p.every((e) => Array.isArray(e) && e.length === 4 && e[0] >= 0 && e[0] < 360);
     if (!ok) fail(`${at}: palette malformed`);
   }
+  if (item.y !== undefined && !(Number.isInteger(item.y) && item.y >= -10000 && item.y <= 2100)) fail(`${at}: year ${item.y} out of range`);
+  if (item.k !== undefined && !KIND_IDS.has(item.k)) fail(`${at}: unknown kind ${item.k}`);
+  if (item.r !== undefined && !REGION_IDS.has(item.r)) fail(`${at}: unknown region ${item.r}`);
   if (bucket !== null && hueToBucket(item.hue) !== bucket) fail(`${at}: hue belongs in bucket ${hueToBucket(item.hue)}`);
 }
 
@@ -108,7 +112,7 @@ if (neutralSeen !== neutralFirst.count) {
   fail(`neutral pages hold ${neutralSeen} items, count says ${neutralFirst.count}`);
 }
 
-const { twinCount, composition, spine, spineBuckets, words } = await verifySideFiles({
+const { twinCount, composition, spine, spineBuckets, words, eras } = await verifySideFiles({
   read, meta, fail, checkItem, hostOk, ALLOWED_IMAGE_HOSTS, twinRefs, bucketOnlySecondary,
 });
 
@@ -138,9 +142,10 @@ console.log(
 );
 console.log(`plus ${neutralSeen} monochrome works across ${neutralFirst.pages} pages`);
 console.log(`spine holds ${spine.count} works reaching ${spineBuckets.size} hue buckets`);
-console.log(`${twinCount} entries carry a twin at the other museum`);
+console.log(`${twinCount} entries carry a twin at another museum`);
 console.log(`${composition.count} works have a composition map`);
 console.log(`${words.count} words carry a colour`);
+console.log(`${meta.dated} works dated across ${eras.eras.length} eras, ${eras.undated} undated`);
 console.log(`bySource ${JSON.stringify(meta.bySource)}  dropped ${JSON.stringify(meta.dropped)}`);
 if (errors.length > 0) {
   console.error(`FAILED (${errors.length} shown):`);

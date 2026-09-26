@@ -5,7 +5,8 @@ import { getBuffer, head, isAbort, pool, sleep } from './http-util.mjs';
 export const CACHE_DIR = path.join(import.meta.dirname, '.cache');
 const MANIFEST_PATH = path.join(CACHE_DIR, 'manifest.json');
 const CONCURRENCY = 5;
-const CMA_COURTESY_MS = 150;
+/** The Met's CDN is Akamai; the others are a museum's own image servers. */
+const COURTESY_MS = 150;
 
 export const thumbPath = (id) => path.join(CACHE_DIR, `${id}.jpg`);
 
@@ -32,7 +33,8 @@ const saveManifest = (m) => writeFile(MANIFEST_PATH, JSON.stringify(m));
 
 /**
  * Fills `.cache/{id}.jpg` and, for Met only, `item.bigBytes` via HEAD (CMA
- * reports it in the API). Resumable: an existing non-empty cache file is never
+ * reports it in the API; the Rijksmuseum and NGA serve IIIF tiles, so the
+ * viewer never pulls a master file and needs no size). Resumable: an existing non-empty cache file is never
  * re-fetched, and HEAD results persist in the manifest. A stopped `control`
  * leaves the rest on disk for the next run rather than abandoning the index,
  * and aborts whatever is in flight: five workers once sat in SYN_SENT for an
@@ -63,7 +65,7 @@ export async function downloadThumbnails(items, { control, log = console.log } =
         await writeFile(thumbPath(item.id), buf);
         downloaded++;
         ok.push(item);
-        if (item.src === 'cma') await sleep(CMA_COURTESY_MS);
+        if (item.src !== 'met') await sleep(COURTESY_MS);
       } catch (err) {
         if (isAbort(err)) {
           skipped++; // a pause, not a verdict: fetched next run

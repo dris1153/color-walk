@@ -24,9 +24,21 @@ const FIELDS = [
   'accession_number',
   'creditline',
   'share_license_status',
+  'creation_date_earliest',
+  'creation_date_latest',
+  'culture',
+  'department',
+  'technique',
 ].join(',');
 
-export const CMA_CACHE = path.join(CACHE_DIR, 'cma-artworks.jsonl');
+/**
+ * The second cache carries the fields the year, kind and region facets need.
+ * It is filled from scratch (the whole CC0 catalogue is ~84 requests), and the
+ * first stays readable underneath it, so a work the new pass has not reached
+ * yet keeps its place in the index rather than dropping out.
+ */
+export const CMA_CACHE = path.join(CACHE_DIR, 'cma-artworks-v2.jsonl');
+export const CMA_LEGACY_CACHE = path.join(CACHE_DIR, 'cma-artworks.jsonl');
 /** What the first index was built from. Widen with --cma-types=all. */
 export const DEFAULT_CMA_TYPES = ['Painting'];
 

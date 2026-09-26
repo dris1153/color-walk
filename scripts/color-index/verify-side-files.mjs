@@ -102,5 +102,17 @@ export async function verifySideFiles({
     else if (entry.h.reduce((a, b) => a + b, 0) !== entry.n) fail(`words: ${entry.w} histogram does not sum to ${entry.n}`);
   }
 
-  return { twinCount, composition, spine, spineBuckets, words };
+  // Eras: one row per era in facets.json order, each histogram summing to its count.
+  const eras = (await read('eras.json').catch(() => null)) ?? { undated: 0, eras: [] };
+  if (eras.eras.length === 0) fail('eras.json: missing or empty - rebuild the index');
+  let dated = 0;
+  for (const row of eras.eras) {
+    if (!Array.isArray(row.h) || row.h.length !== BUCKET_COUNT) fail(`eras: ${row.id} lacks 24 buckets`);
+    else if (row.h.reduce((a, b) => a + b, 0) + row.g !== row.n) fail(`eras: ${row.id} does not sum to ${row.n}`);
+    dated += row.n;
+  }
+  if (dated !== meta.dated) fail(`eras.json: ${dated} dated works, meta.dated is ${meta.dated}`);
+  if (dated + eras.undated !== meta.total + meta.neutral) fail('eras.json: dated and undated do not add up to every work');
+
+  return { twinCount, composition, spine, spineBuckets, words, eras };
 }

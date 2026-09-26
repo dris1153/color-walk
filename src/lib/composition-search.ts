@@ -1,4 +1,5 @@
 import { circularHueDistance } from './color-math';
+import { isSource, type Source } from './museums';
 
 /**
  * Searching by where colour sits, not only what it is. Entries come from
@@ -12,7 +13,7 @@ export type CompositionEntry = {
   t: string;
   thumb: string;
   hex: string;
-  src: 'met' | 'cma';
+  src: Source;
   bucket: number;
   page: number;
   c: readonly Cell[];
@@ -84,7 +85,7 @@ export function isCompositionEntry(x: unknown): x is CompositionEntry {
     typeof e.thumb === 'string' &&
     typeof e.hex === 'string' &&
     /^#[0-9a-f]{6}$/i.test(e.hex) &&
-    (e.src === 'met' || e.src === 'cma') &&
+    isSource(e.src) &&
     Number.isInteger(e.bucket) &&
     Number.isInteger(e.page) &&
     Array.isArray(e.c) &&

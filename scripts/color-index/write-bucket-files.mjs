@@ -5,6 +5,7 @@ import { writeSpineFile } from './write-spine-file.mjs';
 import { attachTwins, findTwins } from './write-twins.mjs';
 import { writeCompositionFile } from './write-composition-file.mjs';
 import { writeWordsFile } from './write-words-file.mjs';
+import { writeErasFile } from './write-eras-file.mjs';
 
 export const BUCKET_COUNT = 24;
 export const BUCKET_WIDTH = 360 / BUCKET_COUNT;
@@ -159,6 +160,9 @@ export async function writeBucketFiles(items, outDir, dropped = {}, neutrals = [
   // and greys would only dilute it.
   const neutral = await writeNeutralFiles(neutrals, outDir);
   const spine = await writeSpineFile(items, neutrals, outDir);
+  const dated = await writeErasFile(items, neutrals, outDir);
+  const bySource = {};
+  for (const i of items) bySource[i.src] = (bySource[i.src] ?? 0) + 1;
 
   const meta = {
     generatedAt: new Date().toISOString(),
@@ -171,10 +175,8 @@ export async function writeBucketFiles(items, outDir, dropped = {}, neutrals = [
     twins: twins.size,
     composition,
     words,
-    bySource: {
-      met: items.filter((i) => i.src === 'met').length,
-      cma: items.filter((i) => i.src === 'cma').length,
-    },
+    dated,
+    bySource,
     byBucket: buckets.map((b) => b.count),
     dropped: {
       validation: dropped.validation ?? 0,

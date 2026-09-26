@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { useBodyScrollLock } from '../hooks/use-body-scroll-lock';
 import { useInertSiblings } from '../hooks/use-inert-siblings';
-import { isAllowedImageUrl } from '../lib/image-url';
+import { isAllowedImageUrl, isIiifService } from '../lib/image-url';
 import { paletteGradient } from '../lib/palette-gradient';
 import { useTwin } from '../hooks/use-twin';
 import { DeepZoomErrorBoundary } from './deep-zoom-error-boundary';
@@ -9,6 +9,7 @@ import { ArtworkMetadataPanel } from './artwork-metadata-panel';
 import { ArtworkTwinCompare } from './artwork-twin-compare';
 import { OverlayStepButtons } from './overlay-step-buttons';
 import type { Item } from '../lib/color-index-client';
+import type { Filter } from '../lib/facets';
 
 const ArtworkDeepZoomViewer = lazy(() => import('./artwork-deep-zoom-viewer'));
 
@@ -30,7 +31,7 @@ type Props = {
   onStep: (delta: -1 | 1) => void;
   onToggleSave: (item: Item) => void;
   onRequestClose: () => void;
-  onBrowseColour: (hue: number, lightness: number) => void;
+  onBrowseColour: (hue: number, lightness: number, facet?: Filter) => void;
   onOpen: (item: Item) => void;
 };
 
@@ -49,8 +50,9 @@ export function ArtworkDetailOverlay({
   const canZoom = isAllowedImageUrl(item.big);
   const [posterVisible, setPosterVisible] = useState(true);
   const [viewerFailed, setViewerFailed] = useState(false);
+  // Tiles arrive only for what is on screen, so a IIIF service never needs asking.
   const [wantsBig, setWantsBig] = useState(
-    canZoom && item.bigBytes !== null && item.bigBytes <= AUTO_LOAD_MAX_BYTES,
+    canZoom && (isIiifService(item.big) || (item.bigBytes !== null && item.bigBytes <= AUTO_LOAD_MAX_BYTES)),
   );
   const twin = useTwin(item.twin);
   const [comparing, setComparing] = useState(false);
