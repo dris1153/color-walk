@@ -2,6 +2,21 @@
 
 Pick a colour, then walk through the public-domain works that share it.
 
+[![Node 22](https://img.shields.io/badge/Node-22-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)](.nvmrc)
+[![React 19](https://img.shields.io/badge/React-19-149ECA?style=flat-square&logo=react&logoColor=white)](https://react.dev)
+[![TypeScript 5.9](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Vite 8](https://img.shields.io/badge/Vite-8-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vite.dev)
+[![Tailwind CSS 4](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Vitest](https://img.shields.io/badge/tested_with-Vitest-6E9F18?style=flat-square&logo=vitest&logoColor=white)](https://vitest.dev)
+[![OpenSeadragon 6](https://img.shields.io/badge/OpenSeadragon-6-2B5B84?style=flat-square)](https://openseadragon.github.io)
+
+[![70k+ works](https://img.shields.io/badge/works-70k%2B-C2410C?style=flat-square)](#the-colour-index)
+[![4 museums](https://img.shields.io/badge/museums-4-7C3AED?style=flat-square)](#attribution)
+[![Data: CC0 / public domain](https://img.shields.io/badge/data-CC0_%2F_public_domain-2EA44F?style=flat-square)](#attribution)
+![Backend: none](https://img.shields.io/badge/backend-none-555555?style=flat-square)
+![Tracking: none](https://img.shields.io/badge/tracking-none-555555?style=flat-square)
+[![License: MIT](https://img.shields.io/badge/license-MIT-0A7BBB?style=flat-square)](LICENSE)
+
 Dragging the hue wheel re-sorts a gallery of works from the Metropolitan Museum
 of Art, the Cleveland Museum of Art, the Rijksmuseum and the National Gallery of
 Art by how close their dominant colour is to the one you picked, narrowed if you
@@ -14,16 +29,121 @@ The site is static. At runtime it calls no third-party API at all: it fetches
 colour-index JSON from its own origin and loads images from the museums' own
 image servers. There is no backend, no database, no account, no cookie and no analytics.
 
-## Running it
+## Contents
+
+- [Features](#features)
+- [Quick start](#quick-start)
+- [Scripts](#scripts)
+- [Tech stack](#tech-stack)
+- [Project layout](#project-layout)
+- [Deploying](#deploying)
+- [Environment](#environment)
+- [The colour index](#the-colour-index)
+- [Attribution](#attribution)
+- [Why not the Art Institute of Chicago](#why-not-the-art-institute-of-chicago)
+- [The pre-deploy check that matters](#the-pre-deploy-check-that-matters)
+- [Security notes](#security-notes)
+- [Not included](#not-included)
+- [License](#license)
+
+## Features
+
+**The wheel**
+
+- Drag the hue wheel and the gallery re-sorts by colour distance; the tone
+  slider does the same for light and dark, and the black-and-white button
+  switches to the monochrome works.
+- Filter by kind of object, era and region. Filters live in the URL hash, so a
+  filtered view is a link (`#h=210&k=ceramic&e=1600&r=europe`).
+- Open a work for a deep-zoom viewer, its palette as a PNG card or CSS custom
+  properties, its twin (the nearest colour at another museum) and its echo (the
+  same colour a thousand years or more away). Arrow keys step to the next work.
+- Save works; the saved list is drawn as a wheel to fill in.
+
+**Explore**
+
+- **Walk**: twenty works stepping from one colour to another, each the closest
+  the collection has to that point.
+- **Eras**: each era's colours as one band, its signature hue, and the history
+  of a single colour through time.
+- **Echoes**: pairs of works in the same colour made far apart in time.
+- **Words**: what colour a word is, across the collection's titles.
+- **Arrange**: paint where colours sit on a 3x3 grid and find works composed
+  that way.
+- **Slow looking**: one work at a time, full screen, nine seconds each.
+
+**Play**
+
+- **Today**: five rounds, the same for everyone, seeded by the date.
+- **Which is darker?**, **How light is it?** and **When was it made?**
+
+**Your pictures**
+
+- **From a picture**: a photo you already have becomes a way in.
+- **Camera**: the rear camera's colour steers the grid, once a second.
+- **Mosaic**: your picture rebuilt from 4,096 artwork tiles.
+
+Pictures and camera frames are read in the page and never uploaded.
+
+**View**
+
+- Colour-vision simulation (protanopia, deuteranopia, tritanopia, no colour),
+  squint, swatches only, the palette strip and titles on every card, and card
+  size. These are kept in the browser, not the URL, because they change how the
+  works look rather than which ones appear.
+
+## Quick start
 
 Requires Node 22 (see `.nvmrc`).
 
 ```bash
 npm ci          # exact versions from package-lock.json
 npm run dev     # http://localhost:5173
-npm test        # unit tests (vitest)
-npm run build   # type-check and bundle into dist/
-npm run preview # serve the built bundle
+```
+
+The repository ships a built colour index in `public/index/`, so the site runs
+without crawling anything. `package-lock.json` is the lockfile of record;
+`pnpm <script>` runs the same scripts, and `pnpm-lock.yaml` is gitignored.
+
+## Scripts
+
+| Script | What it does |
+|---|---|
+| `npm run dev` | Vite dev server on port 5173 |
+| `npm test` | unit tests (Vitest) |
+| `npm run build` | type-check, bundle into `dist/`, write the per-hue pages, check the share-card URL |
+| `npm run preview` | serve the built bundle |
+| `npm run build:index` | crawl the museums and rebuild `public/index/` ([details](#the-colour-index)) |
+| `npm run verify:index` | assert the index and its side files before committing them |
+| `npm run crawl:status` | state of a running crawl, from a second terminal |
+| `npm run build:og` | the 25 per-hue share cards in `public/og/` |
+
+## Tech stack
+
+- React 19 and TypeScript 5.9, bundled by Vite 8 and styled with Tailwind CSS 4.
+- OpenSeadragon 6 for deep zoom; IIIF tiles for the Rijksmuseum and the NGA.
+- Three runtime dependencies in all: `react`, `react-dom`, `openseadragon`.
+- Vitest for the unit tests, which cover `src/lib/` and the build scripts.
+- The index build is plain Node ESM, with `sharp` for the thumbnails.
+- Deployed as static files on Vercel, headers in `vercel.json`.
+
+## Project layout
+
+```text
+src/
+  components/      one React component per file
+  hooks/           state and effects shared between components
+  lib/             pure logic: colour maths, index client, games, stores
+  styles/          global.css
+scripts/
+  color-index/     the crawl and index build; build-color-index.mjs is the entry
+  build-hue-pages.mjs, assert-html-env.mjs   steps after the Vite build
+public/
+  index/           the committed colour index and its side files
+  og/              per-hue share cards
+  fonts/           self-hosted fonts
+plans/             design notes and reports: why things are the way they are
+vercel.json        response headers, including the Content-Security-Policy
 ```
 
 ## Deploying
@@ -32,7 +152,7 @@ The site deploys to Vercel through its Git integration: connect the repository
 once in the Vercel dashboard and every push to `main` ships. There is no deploy
 command and no deploy credential on your machine, which is the point.
 
-Two settings matter on the Vercel side:
+Three settings matter on the Vercel side:
 
 - **Node version 22**, to match `.nvmrc`.
 - **`VITE_APP_URL`**, set to the production origin with **no trailing slash**,
@@ -86,10 +206,18 @@ every dependency is pinned to an exact version and no package install script
 runs. Install new packages with plain `npm i <name>` and the exact version is
 recorded automatically.
 
-## Rebuilding the colour index
+## The colour index
 
-`public/index/` holds the committed colour index: `meta.json`, `all.json` and
-24 bucket files, one per 15 degrees of hue. Nothing rebuilds it automatically.
+`public/index/` holds the committed colour index:
+
+- `meta.json`, the counts `verify:index` checks everything against;
+- `all.json`, the 300-work all-colours sample the page opens on;
+- for each of the 24 hues, one per 15 degrees, `bucket-NN.json` and further
+  pages `bucket-NN-P.json` of 600 works each, sorted within the page;
+- `neutral.json` and its pages for the monochrome works;
+- the side files listed under [The files beside the buckets](#the-files-beside-the-buckets).
+
+Nothing rebuilds it automatically.
 Regenerate it by hand when museum image URLs drift or when you widen the source
 query:
 
@@ -102,9 +230,12 @@ git add public/index && git commit
 
 What to expect on a cold cache:
 
-- About **1.4 GB** of thumbnails downloaded into `scripts/color-index/.cache/`,
-  which is gitignored. A warm re-run issues zero downloads and finishes in
-  about 20 seconds.
+- Thumbnails downloaded into `scripts/color-index/.cache/`, which is
+  gitignored. The original default run, before the Rijksmuseum and NGA
+  stages, measured **1.4 GB**; the wide crawl below reached **19 GB at 90,000 files**. A warm
+  re-run issues zero downloads. `vite.config.ts` keeps the cache out of the dev
+  server's file watcher and dependency scan: watching it stalled a cold
+  `npm run dev` for over ten minutes while a crawl was writing to it.
 - **Roughly an hour** for the Met stage alone. `collectionapi.metmuseum.org`
   sits behind Imperva: the documented 80 requests per second is not what the
   WAF enforces, and about 75 requests in quick succession earn a 403 block
@@ -275,10 +406,13 @@ achromatic.
 
 ### The collection is warm, and the gallery compensates
 
-The measured distribution is heavily skewed: buckets 1 to 3, vermilion through
-amber, hold 95% of the collection, and five buckets from indigo to fuchsia are
-empty. Many Cleveland "paintings" are ink-on-paper scrolls that are almost
-monochrome sepia.
+The measured distribution is heavily skewed. In the index committed on
+2026-09-26 (70,767 works, Met and Cleveland only), buckets 1 to 3, vermilion
+through amber, hold 86% of the index entries, and each hue from purple to rose
+holds between 43 and 110. An entry is a work under one hue; a work with a strong
+second colour is listed under both. The first index was worse still: 95% in
+those three buckets and five hues empty. Many Cleveland "paintings" are
+ink-on-paper scrolls that are almost monochrome sepia.
 
 Loading only the exact bucket would therefore leave most of the wheel dead, so
 `loadBucketNear` pads a thin hue from its neighbouring buckets one ring at a
@@ -363,7 +497,13 @@ There is no `dangerouslySetInnerHTML` anywhere in the repository.
 ## Not included
 
 Art Institute of Chicago, IIIF tiling for the Met and Cleveland (their hosts
-serve single files), client-side palette
-extraction, AI captions, word-association lookups, a sky or time-of-day palette
-mode, favourites, accounts, and any backend. Each was considered and left out;
+serve single files), palette extraction from the museums' images in the browser
+(they send no CORS header), AI captions, word-association lookups, a sky or
+time-of-day palette mode, accounts, and any backend. Each was considered and left out;
 `plans/` records why, and what would have to change to revisit it.
+
+## License
+
+The code is MIT-licensed, see [LICENSE](LICENSE). The images and data belong to
+the museums and come under their own terms, listed in [Attribution](#attribution);
+the MIT licence does not cover them.
