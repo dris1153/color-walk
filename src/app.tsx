@@ -172,7 +172,6 @@ export function App() {
               sentinelRef={sentinelRef}
               onOpen={open}
               onJumpToHue={jumpToHue}
-              onClearFilter={() => changeFilter(NO_FILTER)}
             />
           )}
         </div>

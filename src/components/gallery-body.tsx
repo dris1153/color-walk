@@ -21,7 +21,6 @@ type Props = {
   sentinelRef: RefObject<HTMLDivElement | null>;
   onOpen: (item: Item) => void;
   onJumpToHue: (hue: number) => void;
-  onClearFilter: () => void;
 };
 
 /** The browsing view: the landing ring, the saved works, or the grid for a colour. */
@@ -36,7 +35,6 @@ export function GalleryBody({
   sentinelRef,
   onOpen,
   onJumpToHue,
-  onClearFilter,
 }: Props) {
   const browsing = !showingSaved && !asRing;
   return (
@@ -74,7 +72,6 @@ export function GalleryBody({
           searching={gallery.searching}
           more={gallery.more}
           onSearchMore={gallery.searchMore}
-          onClear={onClearFilter}
         />
       )}
       {browsing && !(isFiltering(filter) && gallery.status === 'ready') && (

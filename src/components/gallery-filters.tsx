@@ -1,4 +1,4 @@
-import { ERAS, KINDS, REGIONS, isFiltering, NO_FILTER, type Filter } from '../lib/facets';
+import { ERAS, KINDS, REGIONS, type Filter } from '../lib/facets';
 
 type Props = {
   filter: Filter;
@@ -42,11 +42,6 @@ export function GalleryFilters({ filter, onChange }: Props) {
       <FacetSelect label="Kind of object" any="Any kind" options={KINDS} value={filter.kind} onChange={(kind) => onChange({ kind })} />
       <FacetSelect label="Time" any="Any time" options={ERAS} value={filter.era} onChange={(era) => onChange({ era })} />
       <FacetSelect label="Region" any="Anywhere" options={REGIONS} value={filter.region} onChange={(region) => onChange({ region })} />
-      {isFiltering(filter) && (
-        <button type="button" onClick={() => onChange(NO_FILTER)} className={CONTROL} aria-label="Clear filters">
-          &times;
-        </button>
-      )}
     </div>
   );
 }
