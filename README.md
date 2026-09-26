@@ -193,6 +193,10 @@ npm run build:index -- --met-departments=11,6,14,21,10 --met-queries=turquoise,f
 About 25,000 new Met objects at ~1.25 req/s (six hours or so), then the
 Rijksmuseum and NGA stages in minutes, then their thumbnails.
 
+PowerShell turns an unquoted `11,6,14` into `11 6 14`; lists of single words
+and ids accept either form. A list whose entries contain spaces
+(`--nga-classes=Painting,Decorative Art`) must be quoted there.
+
 ### Year, kind and region
 
 Every work carries up to three facets, mapped at build time onto the short

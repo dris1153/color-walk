@@ -97,6 +97,19 @@ describe('parseArgs', () => {
     expect(args.ngaClasses).toEqual(['Painting']);
   });
 
+  it('reads lists PowerShell has turned into space-separated words', () => {
+    const args = parseArgs([
+      '--met-departments=11 6 14 21 10',
+      '--met-queries=turquoise faience enamel',
+      '--source=met cma',
+      '--nga-classes=Painting,Decorative Art',
+    ]);
+    expect(args.metDepartments).toEqual([11, 6, 14, 21, 10]);
+    expect(args.metQueries).toEqual(['turquoise', 'faience', 'enamel']);
+    expect(args.sources).toEqual(['met', 'cma']);
+    expect(args.ngaClasses).toEqual(['Painting', 'Decorative Art']);
+  });
+
   it('refuses a museum it does not know', () => {
     expect(() => parseArgs(['--source=louvre'])).toThrow(/bad --source/);
   });
