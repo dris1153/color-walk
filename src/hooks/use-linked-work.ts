@@ -1,25 +1,25 @@
 import { useEffect, useState } from 'react';
 import { loadTwin, type Item, type Twin } from '../lib/color-index-client';
 
-/** Resolved lazily: the overlay is already open before the twin is needed. */
-export function useTwin(twin: Twin | undefined): Item | null {
+/** A work an entry points at (its twin, its echo), resolved lazily: the overlay is already open before it is needed. */
+export function useLinkedWork(link: Twin | undefined): Item | null {
   const [item, setItem] = useState<Item | null>(null);
 
   useEffect(() => {
     let stale = false;
     setItem(null);
-    if (!twin) return;
-    loadTwin(twin)
+    if (!link) return;
+    loadTwin(link)
       .then((found) => {
         if (!stale) setItem(found);
       })
       .catch(() => {
-        /* the overlay simply shows no twin */
+        /* the overlay simply shows no card for it */
       });
     return () => {
       stale = true;
     };
-  }, [twin]);
+  }, [link]);
 
   return item;
 }

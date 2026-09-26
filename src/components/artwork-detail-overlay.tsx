@@ -3,7 +3,7 @@ import { useBodyScrollLock } from '../hooks/use-body-scroll-lock';
 import { useInertSiblings } from '../hooks/use-inert-siblings';
 import { isAllowedImageUrl, isIiifService } from '../lib/image-url';
 import { paletteGradient } from '../lib/palette-gradient';
-import { useTwin } from '../hooks/use-twin';
+import { useLinkedWork } from '../hooks/use-linked-work';
 import { DeepZoomErrorBoundary } from './deep-zoom-error-boundary';
 import { ArtworkMetadataPanel } from './artwork-metadata-panel';
 import { ArtworkTwinCompare } from './artwork-twin-compare';
@@ -54,7 +54,8 @@ export function ArtworkDetailOverlay({
   const [wantsBig, setWantsBig] = useState(
     canZoom && (isIiifService(item.big) || (item.bigBytes !== null && item.bigBytes <= AUTO_LOAD_MAX_BYTES)),
   );
-  const twin = useTwin(item.twin);
+  const twin = useLinkedWork(item.twin);
+  const echo = useLinkedWork(item.echo);
   const [comparing, setComparing] = useState(false);
 
   useBodyScrollLock();
@@ -166,6 +167,7 @@ export function ArtworkDetailOverlay({
           <ArtworkMetadataPanel
             item={item}
             twin={twin}
+            echo={echo}
             comparing={comparing}
             onCompare={toggleCompare}
             isSaved={isSaved}

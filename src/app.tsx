@@ -9,6 +9,7 @@ import { useWalkState } from './hooks/use-walk-state';
 import { GalleryLoading, ImagesUnavailableBanner } from './components/gallery-status';
 import { GalleryBody } from './components/gallery-body';
 import { GalleryFilters } from './components/gallery-filters';
+import { VisionControl } from './components/vision-control';
 import { AttributionFooter } from './components/attribution-footer';
 import { SavedToggle } from './components/saved-toggle';
 import { useFavourites } from './hooks/use-favourites';
@@ -129,6 +130,7 @@ export function App() {
         <h1 className="sr-only">Color Walk</h1>
         <div className="flex flex-wrap items-start gap-2">
           {!showingSaved && !busy && <GalleryFilters filter={filter} onChange={changeFilter} />}
+          <VisionControl />
           <div className="ml-auto">
             <SavedToggle
               count={favourites.length}

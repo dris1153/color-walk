@@ -1,6 +1,7 @@
 import { ColourGames } from './colour-games';
 import { ColourWalk } from './colour-walk';
 import { CompositionSearch } from './composition-search';
+import { EchoPairs } from './echo-pairs';
 import { EraColours } from './era-colours';
 import { MosaicMaker } from './mosaic-maker';
 import { WordColour } from './word-colour';
@@ -34,6 +35,8 @@ export function ActivityView({ activity, walk, from, wheelHue, onOpen, onJumpToH
       return <ColourGames onClose={onClose} />;
     case 'compose':
       return <CompositionSearch onOpen={onOpen} onClose={onClose} />;
+    case 'echoes':
+      return <EchoPairs onOpen={onOpen} onClose={onClose} />;
     case 'mosaic':
       return <MosaicMaker onOpen={onOpen} onClose={onClose} />;
     case 'word':

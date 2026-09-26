@@ -7,6 +7,8 @@ import { ArtworkMasonryGrid } from './artwork-masonry-grid';
 import { CollectionRing } from './collection-ring';
 import { FilterStatus } from './filter-status';
 import { GalleryStatus } from './gallery-status';
+import { PaletteActions } from './palette-actions';
+import { savedPalette } from '../lib/palette-card';
 
 type Props = {
   gallery: ReturnType<typeof useArtworksByHue>;
@@ -44,6 +46,16 @@ export function GalleryBody({
       ) : (
         <>
           {showingSaved && <CollectionRing items={favourites} />}
+          {showingSaved && favourites.length > 0 && (
+            <div className="mb-4 flex justify-center">
+              <PaletteActions
+                bands={savedPalette(favourites)}
+                title="My Color Walk palette"
+                subtitle={`${favourites.length} saved works`}
+                fileName="color-walk-palette.png"
+              />
+            </div>
+          )}
           <ArtworkMasonryGrid
             items={showingSaved ? favourites : gallery.revealed}
             columns={columns}

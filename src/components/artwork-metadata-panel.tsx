@@ -2,14 +2,20 @@ import { isAllowedPageUrl } from '../lib/image-url';
 import { nearestColorName } from '../lib/color-name-table';
 import { hslToHex } from '../lib/color-math';
 import type { Filter } from '../lib/facets';
-import { museumName } from '../lib/museums';
+import { MUSEUMS, museumName } from '../lib/museums';
+import { paletteBands } from '../lib/palette-gradient';
+import { PaletteActions } from './palette-actions';
 import type { Item } from '../lib/color-index-client';
+import { echoPhrase } from '../lib/echo-phrase';
 import { ArtworkFacetChips } from './artwork-facet-chips';
+import { LinkedWorkCard } from './linked-work-card';
 
 type Props = {
   item: Item;
-  /** Its nearest colour at the other museum, once resolved. */
+  /** Its nearest colour at another museum, once resolved. */
   twin: Item | null;
+  /** The same colour a thousand years or more away, once resolved. */
+  echo: Item | null;
   comparing: boolean;
   onCompare: () => void;
   isSaved: boolean;
@@ -24,6 +30,7 @@ const TOGGLE_CLASS =
 export function ArtworkMetadataPanel({
   item,
   twin,
+  echo,
   comparing,
   onCompare,
   isSaved,
@@ -78,33 +85,20 @@ export function ArtworkMetadataPanel({
         </div>
       )}
 
-      {twin && (
-        <button
-          type="button"
-          onClick={() => onOpen(twin)}
-          className="group flex items-center gap-3 border border-ink/15 p-2 text-left hover:border-ink/60"
-          aria-label={`Open its twin, ${twin.t}`}
-        >
-          <img
-            src={twin.thumb}
-            alt=""
-            className="h-14 w-14 shrink-0 object-cover"
-            style={{ backgroundColor: twin.hex }}
-          />
-          <span className="min-w-0">
-            <span className="block font-mono text-[10px] tracking-widest uppercase text-ink/40">
-              Its twin at {museumName(twin.src)}
-            </span>
-            <span className="block truncate text-sm text-ink group-hover:underline">{twin.t}</span>
-            <span className="block font-mono text-[10px] text-ink/50">{twin.hex}</span>
-          </span>
-        </button>
-      )}
+      {twin && <LinkedWorkCard work={twin} label={`Its twin at ${museumName(twin.src)}`} onOpen={onOpen} />}
+      {echo && <LinkedWorkCard work={echo} label={echoPhrase(item.y, echo.y)} onOpen={onOpen} />}
       {twin && (
         <button type="button" aria-pressed={comparing} onClick={onCompare} className={TOGGLE_CLASS}>
           {comparing ? 'Back to the work' : 'Compare side by side'}
         </button>
       )}
+
+      <PaletteActions
+        bands={paletteBands(item)}
+        title={item.t}
+        subtitle={[item.a, item.d, MUSEUMS[item.src]].filter(Boolean).join(' · ')}
+        fileName={`palette-${item.id}.png`}
+      />
 
       {item.credit && <p className="text-xs leading-relaxed text-ink/50">{item.credit}</p>}
 

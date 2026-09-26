@@ -58,6 +58,8 @@ let counted = 0;
 const works = new Set();
 /** One check per distinct twin reference; the same twin on many copies is one. */
 const twinRefs = new Map();
+/** Every entry that carries an echo; checked against the page the echo names. */
+const echoRefs = [];
 
 for (let b = 0; b < BUCKET_COUNT; b++) {
   const pad = String(b).padStart(2, '0');
@@ -79,6 +81,7 @@ for (let b = 0; b < BUCKET_COUNT; b++) {
       works.add(item.id);
       if (!item.p?.some((e) => e[3] > item.pct)) leadsHere++;
       if (item.twin && !twinRefs.has(item.id)) twinRefs.set([item.twin.bucket, item.twin.page], item);
+      if (item.echo) echoRefs.push(item);
       if (item.pct > previousPct) fail(`bucket ${b}: items not sorted by pct across page ${page}`);
       previousPct = item.pct;
       seen++;
@@ -113,7 +116,7 @@ if (neutralSeen !== neutralFirst.count) {
 }
 
 const { twinCount, composition, spine, spineBuckets, words, eras, histories, mosaic } = await verifySideFiles({
-  read, meta, fail, checkItem, hostOk, ALLOWED_IMAGE_HOSTS, twinRefs, bucketOnlySecondary,
+  read, meta, fail, checkItem, hostOk, ALLOWED_IMAGE_HOSTS, twinRefs, echoRefs, bucketOnlySecondary,
 });
 
 const all = await read('all.json');
@@ -146,7 +149,7 @@ console.log(`${twinCount} entries carry a twin at another museum`);
 console.log(`${composition.count} works have a composition map`);
 console.log(`${words.count} words carry a colour`);
 console.log(`${meta.dated} works dated across ${eras.eras.length} eras, ${eras.undated} undated`);
-console.log(`${histories.count} colour-history cells, ${mosaic?.count ?? 0} mosaic tiles`);
+console.log(`${histories.count} colour-history cells, ${mosaic?.count ?? 0} mosaic tiles, ${echoRefs.length} entries with an echo`);
 console.log(`bySource ${JSON.stringify(meta.bySource)}  dropped ${JSON.stringify(meta.dropped)}`);
 if (errors.length > 0) {
   console.error(`FAILED (${errors.length} shown):`);

@@ -133,9 +133,8 @@ export async function writeBucketFiles(items, outDir, dropped = {}, neutrals = [
   const twins = findTwins(buckets);
   attachTwins(buckets, twins);
   const dealt = dealNeutrals(neutrals);
-  const neutralPage = new Map(dealt.dealt.flatMap((page, p) => page.map((n) => [n.id, p])));
-  const { composition, histories, mosaic } = await writeLocatedSideFiles({
-    buckets, items, neutrals, neutralPage, pageSize: PAGE_SIZE, outDir, readThumb,
+  const { composition, histories, mosaic, echoes, echoPairs } = await writeLocatedSideFiles({
+    buckets, items, dealt, pageSize: PAGE_SIZE, outDir, readThumb,
   });
   const words = await writeWordsFile(items, outDir);
   // The composition map and the mean colour belong to their side files, not
@@ -180,6 +179,8 @@ export async function writeBucketFiles(items, outDir, dropped = {}, neutrals = [
     composition,
     histories,
     mosaic,
+    echoes,
+    echoPairs,
     words,
     dated,
     bySource,

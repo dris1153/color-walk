@@ -16,6 +16,7 @@ export async function verifySideFiles({
   hostOk,
   ALLOWED_IMAGE_HOSTS,
   twinRefs,
+  echoRefs = [],
   bucketOnlySecondary,
 }) {
   const pages = new Map();
@@ -127,6 +128,20 @@ export async function verifySideFiles({
   for (const tile of mosaic?.items ?? []) {
     if (!(await pageOf(tile.b, tile.p))?.has(tile.id)) fail(`mosaic: ${tile.id} is not on ${tile.b} page ${tile.p}`);
     if (!Array.isArray(tile.l) || tile.l.length !== 3) fail(`mosaic: ${tile.id} has no Lab colour`);
+  }
+
+  // Echoes: on the page they name, and a thousand years or more away.
+  for (const item of echoRefs) {
+    const found = (await pageOf(item.echo.bucket, item.echo.page))?.get(item.echo.id);
+    if (!found) fail(`${item.id}: echo ${item.echo.id} is not on bucket ${item.echo.bucket} page ${item.echo.page}`);
+    else if (!(Math.abs(found.y - item.y) >= 1000)) fail(`${item.id}: echo ${found.id} is only ${Math.abs(found.y - item.y)} years away`);
+  }
+  const echoes = (await read('echoes.json').catch(() => null)) ?? { count: 0, items: [] };
+  if ('echoPairs' in meta && echoes.count !== meta.echoPairs) fail(`echoes.json: ${echoes.count} pairs, meta.echoPairs is ${meta.echoPairs}`);
+  for (const { a, b } of echoes.items) {
+    for (const w of [a, b]) {
+      if (!(await pageOf(w.bucket, w.page))?.has(w.id)) fail(`echoes: ${w.id} is not on bucket ${w.bucket} page ${w.page}`);
+    }
   }
 
   return { twinCount, composition, spine, spineBuckets, words, eras, histories, mosaic };

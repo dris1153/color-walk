@@ -37,6 +37,8 @@ export type Item = {
   credit: string;
   p?: PaletteEntry[];
   twin?: Twin;
+  /** The same colour a thousand years or more away, in the same shape as a twin. */
+  echo?: Twin;
   /** Representative year (the middle of the dated span), when the museum gives one. */
   y?: number;
   /** Kind and region ids from facets.json. */
@@ -89,6 +91,7 @@ export function isItem(x: unknown): x is Item {
     isAllowedImageUrl(i.thumb) &&
     (i.p === undefined || isPalette(i.p)) &&
     (i.twin === undefined || isTwin(i.twin)) &&
+    (i.echo === undefined || isTwin(i.echo)) &&
     (i.y === undefined || Number.isInteger(i.y)) &&
     (i.k === undefined || isKind(i.k)) &&
     (i.r === undefined || isRegion(i.r))

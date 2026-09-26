@@ -248,6 +248,8 @@ Every `npm run build:index` also writes, from the same items:
 | `histories.json` | per hue and era, the work that shows that colour best, for the history timeline | ~11 kB gz |
 | `mosaic.jpg` + `mosaic.json` | 4,096 32 px tiles picked evenly across Lab space, and their mean colours, for the mosaic | ~0.9 MB + ~115 kB gz |
 | `twin` on each entry | the nearest colour at another museum, in the same bucket | ~20 B/work |
+| `echo` on each entry | the same colour a thousand years or more away (76% of dated works have one) | ~40 B/work |
+| `echoes.json` | the widest-apart same-colour pairs, a few per hue, dealt round the wheel | ~40 kB |
 
 `npm run verify:index` checks each against the bucket pages it points into.
 

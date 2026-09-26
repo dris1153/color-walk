@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSpine } from '../hooks/use-spine';
 import { GameDaily } from './game-daily';
 import { GameDarker } from './game-darker';
+import { GameEra } from './game-era';
 import { GameTone } from './game-tone';
 
 type Props = { onClose: () => void };
@@ -10,6 +11,7 @@ const GAMES = [
   { id: 'daily', label: 'Today' },
   { id: 'darker', label: 'Which is darker?' },
   { id: 'tone', label: 'How light is it?' },
+  { id: 'era', label: 'When was it made?' },
 ] as const;
 
 const TAB =
@@ -41,8 +43,10 @@ export function ColourGames({ onClose }: Props) {
         </button>
       </div>
 
-      {status === 'loading' && <p className="font-mono text-xs text-ink/50">Loading the collection...</p>}
-      {status === 'error' && <p className="font-mono text-xs text-ink/50">Could not load the collection.</p>}
+      {/* Draws from the colour histories, not the spine, so it does not wait for it. */}
+      {game === 'era' && <GameEra />}
+      {game !== 'era' && status === 'loading' && <p className="font-mono text-xs text-ink/50">Loading the collection...</p>}
+      {game !== 'era' && status === 'error' && <p className="font-mono text-xs text-ink/50">Could not load the collection.</p>}
       {status === 'ready' && game === 'daily' && <GameDaily pool={items} />}
       {status === 'ready' && game === 'darker' && <GameDarker pool={items} />}
       {status === 'ready' && game === 'tone' && <GameTone pool={items} />}
