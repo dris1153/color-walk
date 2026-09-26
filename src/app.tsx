@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useViewFromUrlHash } from './hooks/use-view-from-url-hash';
-import { useColumnCount } from './hooks/use-column-count';
+import { useGridColumns } from './hooks/use-column-count';
 import { useArtworksByHue } from './hooks/use-artworks-by-hue';
 import { ColourControls } from './components/colour-controls';
 import { ActivityView } from './components/activity-view';
@@ -26,7 +26,7 @@ import { ArtworkDetailOverlay } from './components/artwork-detail-overlay';
 
 export function App() {
   const { hue, tone, setHue, setTone, filter, setFilter, commitHash, pushHash } = useViewFromUrlHash();
-  const columns = useColumnCount();
+  const { columns, baseColumns } = useGridColumns();
   const gallery = useArtworksByHue(hue, tone, columns, filter);
   const { items, revealed, status, revealMore, imagesDown } = gallery;
   const { favourites, isSaved, toggle: toggleSave } = useFavourites();
@@ -35,7 +35,7 @@ export function App() {
   /** The landing view becomes the wheel itself, but only where there is room
    *  for it: below 1024px a ring of this many works is unreadable. A filter
    *  turns it back into a grid, which can say how many matched. */
-  const asRing = hue === null && tone === null && !showingSaved && columns >= 4 && !isFiltering(filter);
+  const asRing = hue === null && tone === null && !showingSaved && baseColumns >= 4 && !isFiltering(filter);
   const { selected, open, replace, requestClose } = useDetailOverlay();
   // Play and compose are local; the walk keeps its own state because it lives in the URL.
   const [activity, setActivity] = useState<Exclude<Activity, 'walk'> | null>(null);

@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useViewSettings } from '../components/view-settings-provider';
+import { SIZE_COLUMN_DELTA } from '../lib/view-settings';
 
 const BREAKPOINTS = [
   { query: '(min-width: 1440px)', columns: 5 },
@@ -23,4 +25,12 @@ export function useColumnCount(): number {
   }, []);
 
   return columns;
+}
+
+/** The grid's columns after the reader's card size, and the screen's own count,
+ *  which decides layout questions such as whether the landing ring fits. */
+export function useGridColumns(): { columns: number; baseColumns: number } {
+  const baseColumns = useColumnCount();
+  const { settings } = useViewSettings();
+  return { baseColumns, columns: Math.max(1, baseColumns + SIZE_COLUMN_DELTA[settings.size]) };
 }

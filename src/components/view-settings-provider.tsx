@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { DEFAULT_VIEW, readViewSettings, writeViewSettings, type ViewSettings } from '../lib/view-settings';
 
 /**
  * The page as people with colour-vision deficiencies see it. Machado, Oliveira
@@ -14,33 +15,37 @@ const MATRICES = {
   achromatopsia: [0.2126, 0.7152, 0.0722, 0.2126, 0.7152, 0.0722, 0.2126, 0.7152, 0.0722],
 } as const;
 
-type Vision = keyof typeof MATRICES;
-
-const OPTIONS: readonly [Vision | '', string][] = [
-  ['', 'Normal vision'],
-  ['protanopia', 'Protanopia (no red)'],
-  ['deuteranopia', 'Deuteranopia (no green)'],
-  ['tritanopia', 'Tritanopia (no blue)'],
-  ['achromatopsia', 'Achromatopsia (no colour)'],
-];
-
 /** A 3x3 matrix as feColorMatrix's 4x5, alpha passed through. */
 const values = (m: readonly number[]) =>
   [0, 1, 2].map((r) => `${m[r * 3]} ${m[r * 3 + 1]} ${m[r * 3 + 2]} 0 0`).join(' ') + ' 0 0 0 1 0';
 
-export function VisionControl() {
-  const [vision, setVision] = useState<Vision | ''>('');
+type Context = { settings: ViewSettings; update: (next: Partial<ViewSettings>) => void };
+const ViewSettingsContext = createContext<Context>({ settings: DEFAULT_VIEW, update: () => undefined });
+
+export const useViewSettings = (): Context => useContext(ViewSettingsContext);
+
+/** Holds the reader's view settings, keeps them in their browser, and applies colour vision to the page. */
+export function ViewSettingsProvider({ children }: { children: ReactNode }) {
+  const [settings, setSettings] = useState<ViewSettings>(readViewSettings);
+  const update = useCallback((next: Partial<ViewSettings>) => {
+    setSettings((s) => {
+      const merged = { ...s, ...next };
+      writeViewSettings(merged);
+      return merged;
+    });
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
-    root.style.filter = vision ? `url(#cw-vision-${vision})` : '';
+    root.style.filter = settings.vision ? `url(#cw-vision-${settings.vision})` : '';
     return () => {
       root.style.filter = '';
     };
-  }, [vision]);
+  }, [settings.vision]);
 
+  const value = useMemo(() => ({ settings, update }), [settings, update]);
   return (
-    <>
+    <ViewSettingsContext.Provider value={value}>
       <svg aria-hidden width="0" height="0" className="absolute">
         <defs>
           {Object.entries(MATRICES).map(([name, m]) => (
@@ -50,18 +55,7 @@ export function VisionControl() {
           ))}
         </defs>
       </svg>
-      <select
-        aria-label="See the collection as"
-        value={vision}
-        onChange={(e) => setVision(e.target.value as Vision | '')}
-        className={`border bg-ground px-2 py-1.5 font-mono text-[11px] tracking-widest uppercase hover:border-ink/50 hover:text-ink ${vision ? 'border-ink/60 text-ink' : 'border-ink/20 text-ink/70'}`}
-      >
-        {OPTIONS.map(([id, label]) => (
-          <option key={id} value={id}>
-            {label}
-          </option>
-        ))}
-      </select>
-    </>
+      {children}
+    </ViewSettingsContext.Provider>
   );
 }
