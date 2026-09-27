@@ -36,7 +36,14 @@ and work count; MIT licence; stray `info.json` removed.
 - 13 badge URLs return 200; all six logos resolve.
 - Rendered through GitHub's markdown API: 14 images, none broken; badges sit on two rows.
 
-## Follow-up after the crawl
+## After the crawl (2026-09-27)
 
-- Rebuild index, `verify:index`, commit `public/index`.
-- Update the `works` badge and the warm-collection figures from the new `meta.json`.
+- Crawl finished complete; final warm run rewrote `public/index` (16 min). 53 thumbnails failed to download, dropped.
+- `verify:index`: OK. 98,537 works in colour, 27,560 monochrome; Met 70,713, CMA 41,539, Rijks 6,942, NGA 6,903.
+- Cold half (buckets 9-17) entries 8,073 -> 16,982.
+- `build:og` rerun: 22 of 25 cards changed.
+- Browser smoke on the built site: every museum's thumbnails 200, no Cf-Mitigated; Eras, Echoes, era game, Mosaic load;
+  Rijksmuseum and NGA deep zoom fetch info.json (200) and draw.
+- README: works badge 126k, museum table, side-file sizes (raw / gzip), warm-collection figures, cache 22 GB.
+- Noted, not changed: composition.json now 3.5 MB / 766 kB gz (Arrange only); `public/index` 133 MB;
+  2.4% of works have the same work as twin and echo.

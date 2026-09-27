@@ -10,7 +10,7 @@ Pick a colour, then walk through the public-domain works that share it.
 [![Vitest](https://img.shields.io/badge/tested_with-Vitest-6E9F18?style=flat-square&logo=vitest&logoColor=white)](https://vitest.dev)
 [![OpenSeadragon 6](https://img.shields.io/badge/OpenSeadragon-6-2B5B84?style=flat-square)](https://openseadragon.github.io)
 
-[![70k+ works](https://img.shields.io/badge/works-70k%2B-C2410C?style=flat-square)](#the-colour-index)
+[![126k works](https://img.shields.io/badge/works-126k-C2410C?style=flat-square)](#the-colour-index)
 [![4 museums](https://img.shields.io/badge/museums-4-7C3AED?style=flat-square)](#attribution)
 [![Data: CC0 / public domain](https://img.shields.io/badge/data-CC0_%2F_public_domain-2EA44F?style=flat-square)](#attribution)
 ![Backend: none](https://img.shields.io/badge/backend-none-555555?style=flat-square)
@@ -232,8 +232,9 @@ What to expect on a cold cache:
 
 - Thumbnails downloaded into `scripts/color-index/.cache/`, which is
   gitignored. The original default run, before the Rijksmuseum and NGA
-  stages, measured **1.4 GB**; the wide crawl below reached **19 GB at 90,000 files**. A warm
-  re-run issues zero downloads. `vite.config.ts` keeps the cache out of the dev
+  stages, measured **1.4 GB**; the wide crawl below ends at **22 GB in 126,114
+  files**. A warm re-run issues zero downloads and, over that whole cache, takes
+  16 minutes, most of it colour extraction. `vite.config.ts` keeps the cache out of the dev
   server's file watcher and dependency scan: watching it stalled a cold
   `npm run dev` for over ten minutes while a crawl was writing to it.
 - **Roughly an hour** for the Met stage alone. `collectionapi.metmuseum.org`
@@ -321,8 +322,20 @@ The fill-the-wheel run, resumable like any other:
 npm run build:index -- --met-departments=11,6,14,21,10 --met-queries=turquoise,faience,enamel --cma-types=all
 ```
 
-About 25,000 new Met objects at ~1.25 req/s (six hours or so), then the
-Rijksmuseum and NGA stages in minutes, then their thumbnails.
+Measured on the run of 2026-09-26: 33,753 new Met objects took 11 hours (0.85
+req/s once the WAF's cooldowns are counted), Cleveland, the Rijksmuseum and the
+NGA 8 minutes together, 36,207 new thumbnails 2 hours, and colour extraction
+over all 126,097 works 7 minutes. It produced:
+
+| Museum | In colour | Monochrome | Total | Colour in the cold half (emerald to indigo) |
+|---|---:|---:|---:|---:|
+| The Met | 51,794 | 18,919 | 70,713 | 9.6% |
+| Cleveland | 34,625 | 6,914 | 41,539 | 3.2% |
+| Rijksmuseum | 5,939 | 1,003 | 6,942 | 14.5% |
+| NGA | 6,179 | 724 | 6,903 | 3.8% |
+| **All** | **98,537** | **27,560** | **126,097** | |
+
+The cold half's index entries went from 8,073 to 16,982.
 
 PowerShell turns an unquoted `11,6,14` into `11 6 14`; lists of single words
 and ids accept either form. A list whose entries contain spaces
@@ -370,17 +383,20 @@ copied afterwards does not keep promising a colour they left.
 
 Every `npm run build:index` also writes, from the same items:
 
-| File | What | Size |
+| File | What | Size (raw / gzip) |
 |---|---|---|
-| `spine.json` | 220 works reaching every hue and tone, for the walk and the games | ~14 kB |
-| `composition.json` | the ~33% of works whose 3x3 colour map varies, for search by arrangement | ~60 kB |
-| `words.json` | title words on >=40 works, each a 24-hue histogram | ~10 kB |
-| `eras.json` | per era, the works by the hue they lead with, plus the monochrome count | ~3 kB |
-| `histories.json` | per hue and era, the work that shows that colour best, for the history timeline | ~11 kB gz |
-| `mosaic.jpg` + `mosaic.json` | 4,096 32 px tiles picked evenly across Lab space, and their mean colours, for the mosaic | ~0.9 MB + ~115 kB gz |
-| `twin` on each entry | the nearest colour at another museum, in the same bucket | ~20 B/work |
-| `echo` on each entry | the same colour a thousand years or more away (76% of dated works have one) | ~40 B/work |
-| `echoes.json` | the widest-apart same-colour pairs, a few per hue, dealt round the wheel | ~40 kB |
+| `spine.json` | 322 works reaching every hue and tone, for the walk and the games | 188 kB / 34 kB |
+| `composition.json` | the 14% of works (13,332) whose 3x3 colour map varies, for search by arrangement; fetched only when Arrange opens | 3.5 MB / 766 kB |
+| `words.json` | 1,226 title words on >=40 works, each a 24-hue histogram | 97 kB / 20 kB |
+| `eras.json` | per era, the works by the hue they lead with, plus the monochrome count | 1.3 kB / 0.6 kB |
+| `histories.json` | per hue and era, the work that shows that colour best, for the history timeline (269 cells) | 61 kB / 11 kB |
+| `mosaic.jpg` + `mosaic.json` | 4,096 32 px tiles picked evenly across Lab space, and their mean colours, for the mosaic | 944 kB + 417 kB / 122 kB |
+| `twin` on each entry | the nearest colour at another museum, in the same bucket | ~49 B/entry |
+| `echo` on each entry | the same colour a thousand years or more away (88% of dated works in colour have one) | ~48 B/entry |
+| `echoes.json` | the widest-apart same-colour pairs, a few per hue, dealt round the wheel | 83 kB / 16 kB |
+
+Measured on the index of 2026-09-27. The whole of `public/index/` is 133 MB in
+375 files.
 
 `npm run verify:index` checks each against the bucket pages it points into.
 
@@ -406,13 +422,12 @@ achromatic.
 
 ### The collection is warm, and the gallery compensates
 
-The measured distribution is heavily skewed. In the index committed on
-2026-09-26 (70,767 works, Met and Cleveland only), buckets 1 to 3, vermilion
-through amber, hold 86% of the index entries, and each hue from purple to rose
-holds between 43 and 110. An entry is a work under one hue; a work with a strong
-second colour is listed under both. The first index was worse still: 95% in
-those three buckets and five hues empty. Many Cleveland "paintings" are
-ink-on-paper scrolls that are almost monochrome sepia.
+The measured distribution is heavily skewed. In the index of 2026-09-27,
+buckets 1 to 3, vermilion through amber, hold 82% of the 183,950 index entries,
+and each hue from violet to fuchsia holds between 58 and 130. An entry is a work
+under one hue; a work with a strong second colour is listed under both. The
+first index was worse: 95% in those three buckets and five hues empty. Many
+Cleveland "paintings" are ink-on-paper scrolls that are almost monochrome sepia.
 
 Loading only the exact bucket would therefore leave most of the wheel dead, so
 `loadBucketNear` pads a thin hue from its neighbouring buckets one ring at a
