@@ -2,6 +2,8 @@
 
 Pick a colour, then walk through the public-domain works that share it.
 
+**Live: [color-walk.drisdev.io](https://color-walk.drisdev.io)**
+
 [![Node 22](https://img.shields.io/badge/Node-22-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)](.nvmrc)
 [![React 19](https://img.shields.io/badge/React-19-149ECA?style=flat-square&logo=react&logoColor=white)](https://react.dev)
 [![TypeScript 5.9](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
@@ -10,6 +12,7 @@ Pick a colour, then walk through the public-domain works that share it.
 [![Vitest](https://img.shields.io/badge/tested_with-Vitest-6E9F18?style=flat-square&logo=vitest&logoColor=white)](https://vitest.dev)
 [![OpenSeadragon 6](https://img.shields.io/badge/OpenSeadragon-6-2B5B84?style=flat-square)](https://openseadragon.github.io)
 
+[![Website](https://img.shields.io/website?url=https%3A%2F%2Fcolor-walk.drisdev.io&label=color-walk.drisdev.io&style=flat-square)](https://color-walk.drisdev.io)
 [![126k works](https://img.shields.io/badge/works-126k-C2410C?style=flat-square)](#the-colour-index)
 [![4 museums](https://img.shields.io/badge/museums-4-7C3AED?style=flat-square)](#attribution)
 [![Data: CC0 / public domain](https://img.shields.io/badge/data-CC0_%2F_public_domain-2EA44F?style=flat-square)](#attribution)
@@ -156,7 +159,7 @@ Three settings matter on the Vercel side:
 
 - **Node version 22**, to match `.nvmrc`.
 - **`VITE_APP_URL`**, set to the production origin with **no trailing slash**,
-  for example `https://color-walk.vercel.app`.
+  here `https://color-walk.drisdev.io`.
 - **Analytics and Speed Insights stay off.** Both inject a third-party script.
   That breaks `script-src 'self'` and the standing rule that this site calls no
   third-party API at runtime - the rule that already cost it a colour-naming
